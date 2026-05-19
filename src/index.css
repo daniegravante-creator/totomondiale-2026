@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { scroll-behavior: smooth; }
+
+  body {
+    @apply bg-tm-bg text-white font-sans antialiased;
+    background-image: radial-gradient(ellipse 100% 60% at 50% 0%, #0f2015 0%, #050f08 65%);
+    min-height: 100dvh;
+  }
+
+  ::-webkit-scrollbar              { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track        { @apply bg-tm-bg; }
+  ::-webkit-scrollbar-thumb        { @apply bg-tm-border-bright rounded-full; }
+  ::-webkit-scrollbar-thumb:hover  { @apply bg-tm-accent-dark; }
+}
+
+@layer components {
+  /* ── Bottoni ── */
+  .btn-primary {
+    @apply bg-tm-accent text-tm-bg font-bold py-3 px-6 rounded-xl
+           hover:bg-tm-accent-dim active:scale-95
+           transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-outline {
+    @apply border border-tm-accent text-tm-accent font-semibold py-3 px-6 rounded-xl
+           hover:bg-tm-accent hover:text-tm-bg active:scale-95
+           transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply text-tm-muted-light font-medium py-2 px-4 rounded-lg
+           hover:bg-tm-card hover:text-white active:scale-95
+           transition-all duration-150;
+  }
+  .btn-danger {
+    @apply bg-red-900/40 border border-red-700 text-red-400 font-semibold py-2 px-4 rounded-lg
+           hover:bg-red-900/70 active:scale-95 transition-all duration-150;
+  }
+
+  /* ── Card ── */
+  .card {
+    @apply bg-tm-card border border-tm-border rounded-2xl p-4 sm:p-5;
+  }
+  .card-sm {
+    @apply bg-tm-card border border-tm-border rounded-xl p-3;
+  }
+
+  /* ── Input ── */
+  .input-field {
+    @apply bg-tm-bg border border-tm-border text-white placeholder-tm-muted
+           rounded-xl px-4 py-3 w-full
+           focus:outline-none focus:border-tm-accent focus:ring-1 focus:ring-tm-accent/30
+           transition-colors duration-150;
+  }
+
+  /* ── Sezioni ── */
+  .section-title {
+    @apply text-lg font-bold text-white;
+  }
+  .accent-divider {
+    @apply h-px my-6 bg-gradient-to-r from-transparent via-tm-accent/40 to-transparent;
+  }
+
+  /* ── Badge ── */
+  .badge-accent {
+    @apply inline-flex items-center gap-1 bg-tm-accent/10 border border-tm-accent/30
+           text-tm-accent text-xs font-semibold px-2 py-0.5 rounded-full;
+  }
+  .badge-muted {
+    @apply inline-flex items-center gap-1 bg-tm-border/50 border border-tm-border
+           text-tm-muted-light text-xs font-medium px-2 py-0.5 rounded-full;
+  }
+
+  /* ── Pronostico 1X2 ── */
+  .outcome-btn {
+    @apply flex-1 py-2.5 text-sm font-bold rounded-lg border transition-all duration-150
+           active:scale-95 select-none cursor-pointer;
+  }
+  .outcome-btn-inactive {
+    @apply border-tm-border text-tm-muted hover:border-tm-border-bright hover:text-white;
+  }
+  .outcome-btn-1   { @apply border-blue-600 bg-blue-600/20 text-blue-300; }
+  .outcome-btn-X   { @apply border-yellow-600 bg-yellow-600/20 text-yellow-300; }
+  .outcome-btn-2   { @apply border-red-600 bg-red-600/20 text-red-300; }
+
+  /* ── Classifica ── */
+  .rank-badge-1    { @apply bg-yellow-500/20 border border-yellow-500/50 text-yellow-400; }
+  .rank-badge-2    { @apply bg-gray-400/20 border border-gray-400/40 text-gray-300; }
+  .rank-badge-3    { @apply bg-orange-700/20 border border-orange-700/40 text-orange-400; }
+  .rank-badge-last { @apply bg-tm-border/50 border border-tm-border text-tm-muted; }
+  .rank-badge      { @apply bg-tm-border/30 border border-tm-border/50 text-tm-muted-light; }
+}
