@@ -371,21 +371,33 @@ function ParticipantRow({ p, onDelete }) {
 // ══════════════════════════════════════════════════════════
 // TAB — RISULTATI
 // ══════════════════════════════════════════════════════════
-function TabRisultati({ matches, teams, settings, onRefresh }) {
+function TabRisultati({ matches: initialMatches, teams, settings, onRefresh }) {
   const GROUPS = ['A','B','C','D','E','F','G','H','I','J','K','L']
+  const [localMatches,setLocalMatches]= useState(initialMatches)
   const [scores,     setScores]     = useState({})
   const [saving,     setSaving]     = useState({})
+  const [savingAll,  setSavingAll]  = useState(false)
   const [syncing,    setSyncing]    = useState(false)
   const [activeGroup,setActiveGroup]= useState('A')
 
   const groupMatches = (g) =>
-    matches.filter(m => m.group_letter === g && m.round === 'group').sort((a,b) => a.match_number - b.match_number)
+    localMatches.filter(m => m.group_letter === g && m.round === 'group').sort((a,b) => a.match_number - b.match_number)
 
   const handleScoreChange = (matchId, side, val) => {
     setScores(s => ({
       ...s,
       [matchId]: { ...(s[matchId] ?? {}), [side]: val }
     }))
+  }
+
+  // Controlla se una partita ha modifiche non salvate
+  const hasChanges = (match) => {
+    const s = scores[match.id]
+    if (!s) return false
+    const newHome = s.home !== undefined ? parseInt(s.home) : null
+    const newAway = s.away !== undefined ? parseInt(s.away) : null
+    if (newHome === null && newAway === null) return false
+    return newHome !== match.home_score || newAway !== match.away_score
   }
 
   const saveScore = async (match) => {
@@ -399,10 +411,42 @@ function TabRisultati({ matches, teams, settings, onRefresh }) {
     setSaving(sv => ({ ...sv, [match.id]: true }))
     try {
       await updateMatchResult(match.id, home, away)
+      // Aggiorna la copia locale senza ricaricare tutto
+      setLocalMatches(prev => prev.map(m =>
+        m.id === match.id ? { ...m, home_score: home, away_score: away, status: 'finished' } : m
+      ))
+      setScores(s => { const copy = { ...s }; delete copy[match.id]; return copy })
       toast.success('Risultato salvato')
-      onRefresh()
     } catch (e) { toast.error('Errore: ' + e.message) }
     setSaving(sv => ({ ...sv, [match.id]: false }))
+  }
+
+  // Salva tutti i risultati modificati del girone attivo
+  const saveAllGroup = async () => {
+    const gMatches = groupMatches(activeGroup)
+    const toSave = gMatches.filter(m => hasChanges(m))
+    if (toSave.length === 0) {
+      toast.error('Nessuna modifica da salvare')
+      return
+    }
+    setSavingAll(true)
+    let saved = 0
+    for (const match of toSave) {
+      const s = scores[match.id] ?? {}
+      const home = s.home !== undefined ? parseInt(s.home) : match.home_score
+      const away = s.away !== undefined ? parseInt(s.away) : match.away_score
+      if (isNaN(home) || isNaN(away) || home < 0 || away < 0) continue
+      try {
+        await updateMatchResult(match.id, home, away)
+        setLocalMatches(prev => prev.map(m =>
+          m.id === match.id ? { ...m, home_score: home, away_score: away, status: 'finished' } : m
+        ))
+        setScores(s => { const copy = { ...s }; delete copy[match.id]; return copy })
+        saved++
+      } catch (e) { toast.error(`Errore partita #${match.match_number}: ${e.message}`) }
+    }
+    if (saved > 0) toast.success(`${saved} risultat${saved === 1 ? 'o salvato' : 'i salvati'}`)
+    setSavingAll(false)
   }
 
   const handleApiSync = async () => {
@@ -410,7 +454,7 @@ function TabRisultati({ matches, teams, settings, onRefresh }) {
     if (!apiKey) { toast.error('API key non configurata nelle Impostazioni'); return }
     setSyncing(true)
     try {
-      const updates = await syncResults(apiKey, matches)
+      const updates = await syncResults(apiKey, localMatches)
       if (updates.length === 0) {
         toast.success('Nessun aggiornamento disponibile')
       } else {
@@ -424,6 +468,9 @@ function TabRisultati({ matches, teams, settings, onRefresh }) {
     } catch (e) { toast.error('Errore API: ' + e.message) }
     setSyncing(false)
   }
+
+  // Conta modifiche pendenti nel girone attivo
+  const pendingChanges = groupMatches(activeGroup).filter(m => hasChanges(m)).length
 
   return (
     <div className="space-y-4">
@@ -476,9 +523,10 @@ function TabRisultati({ matches, teams, settings, onRefresh }) {
           const sc = scores[m.id] ?? {}
           const homeVal = sc.home !== undefined ? sc.home : (m.home_score ?? '')
           const awayVal = sc.away !== undefined ? sc.away : (m.away_score ?? '')
+          const changed = hasChanges(m)
 
           return (
-            <div key={m.id} className="card-sm">
+            <div key={m.id} className={`card-sm transition-all ${changed ? 'border-tm-accent/40' : ''}`}>
               <div className="flex items-center gap-2 text-xs text-tm-muted mb-2">
                 <span>Giornata {m.matchday}</span>
                 <span>·</span>
@@ -503,7 +551,7 @@ function TabRisultati({ matches, teams, settings, onRefresh }) {
                     value={homeVal}
                     onChange={e => handleScoreChange(m.id, 'home', e.target.value)}
                     className="input-field w-12 text-center text-sm py-1.5 px-2"
-                    placeholder="0"
+                    placeholder="–"
                   />
                   <span className="text-tm-muted text-sm font-bold">-</span>
                   <input
@@ -512,7 +560,7 @@ function TabRisultati({ matches, teams, settings, onRefresh }) {
                     value={awayVal}
                     onChange={e => handleScoreChange(m.id, 'away', e.target.value)}
                     className="input-field w-12 text-center text-sm py-1.5 px-2"
-                    placeholder="0"
+                    placeholder="–"
                   />
                 </div>
                 <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
@@ -520,18 +568,25 @@ function TabRisultati({ matches, teams, settings, onRefresh }) {
                   <span className="text-base">{at?.flag}</span>
                 </div>
               </div>
-              <button
-                onClick={() => saveScore(m)}
-                disabled={saving[m.id]}
-                className="mt-2 w-full btn-outline text-xs py-1.5 flex items-center justify-center gap-1"
-              >
-                <Save size={12} />
-                {saving[m.id] ? 'Salvo…' : 'Salva risultato'}
-              </button>
             </div>
           )
         })}
       </div>
+
+      {/* Pulsante salva tutto il girone */}
+      <button
+        onClick={saveAllGroup}
+        disabled={savingAll || pendingChanges === 0}
+        className="btn-primary w-full flex items-center justify-center gap-2 sticky bottom-4"
+      >
+        <Save size={16} />
+        {savingAll
+          ? 'Salvo…'
+          : pendingChanges > 0
+            ? `Salva ${pendingChanges} risultat${pendingChanges === 1 ? 'o' : 'i'} — Girone ${activeGroup}`
+            : `Nessuna modifica — Girone ${activeGroup}`
+        }
+      </button>
     </div>
   )
 }

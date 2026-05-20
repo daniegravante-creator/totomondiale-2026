@@ -23,18 +23,16 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Missing path query parameter' })
   }
 
-  // Prova prima con api-sports.io (header x-apisports-key)
-  // Se fallisce con 403, riprova con RapidAPI (header x-rapidapi-key)
   const attempts = [
     {
       url: `https://v3.football.api-sports.io${path}`,
       headers: { 'x-apisports-key': apiKey },
     },
     {
-      url: `https://v3.football.api-sports.io${path}`,
+      url: `https://api-football-v1.p.rapidapi.com${path}`,
       headers: {
         'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': 'v3.football.api-sports.io',
+        'x-rapidapi-host': 'api-football-v1.p.rapidapi.com',
       },
     },
   ]
@@ -47,18 +45,17 @@ export default async function handler(req, res) {
       const response = await fetch(attempt.url, { headers: attempt.headers })
       const data = await response.json()
 
-      // Se la risposta ha errori di token, prova il prossimo metodo
       if (data.errors && data.errors.token) {
         continue
       }
 
-      return res.status(response.status).json(data)
+      return res.status(200).json(data)
     } catch (error) {
       continue
     }
   }
 
   return res.status(403).json({
-    error: 'API key non valida per nessun provider. Verifica la chiave su dashboard.api-sports.io o rapidapi.com'
+    error: 'API key non valida. Verifica la chiave su dashboard.api-sports.io o rapidapi.com'
   })
 }
