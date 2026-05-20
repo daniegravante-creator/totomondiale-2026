@@ -261,8 +261,18 @@ function TabCodici({ participants, onRefresh }) {
 // TAB — PARTECIPANTI
 // ══════════════════════════════════════════════════════════
 function TabPartecipanti({ participants, onRefresh }) {
-  const submitted = participants.filter(p => p.has_submitted)
-  const pending   = participants.filter(p => !p.has_submitted)
+  const [search, setSearch] = useState('')
+
+  const query = search.trim().toLowerCase()
+  const filtered = query
+    ? participants.filter(p =>
+        `${p.first_name} ${p.last_name}`.toLowerCase().includes(query) ||
+        p.code.toLowerCase().includes(query)
+      )
+    : participants
+
+  const submitted = filtered.filter(p => p.has_submitted)
+  const pending   = filtered.filter(p => !p.has_submitted)
 
   const handleDelete = async (p) => {
     if (!window.confirm(`Eliminare ${p.first_name} ${p.last_name}? Verranno cancellati anche tutti i suoi pronostici.`)) return
@@ -277,14 +287,41 @@ function TabPartecipanti({ participants, onRefresh }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2">
         <div className="card-sm text-center py-3">
-          <div className="text-xl font-black text-tm-accent">{submitted.length}</div>
+          <div className="text-xl font-black text-tm-accent">{participants.filter(p => p.has_submitted).length}</div>
           <div className="text-xs text-tm-muted">Schedine inviate</div>
         </div>
         <div className="card-sm text-center py-3">
-          <div className="text-xl font-black text-yellow-400">{pending.length}</div>
+          <div className="text-xl font-black text-yellow-400">{participants.filter(p => !p.has_submitted).length}</div>
           <div className="text-xs text-tm-muted">In attesa</div>
         </div>
       </div>
+
+      {/* Barra di ricerca */}
+      <div className="relative">
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Cerca per nome, cognome o codice…"
+          className="input-field text-sm pl-9 w-full"
+          autoComplete="off"
+        />
+        <Users size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-tm-muted pointer-events-none" />
+        {search && (
+          <button
+            onClick={() => setSearch('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-tm-muted hover:text-white transition-colors text-xs"
+          >
+            Annulla
+          </button>
+        )}
+      </div>
+
+      {query && filtered.length === 0 && (
+        <div className="card text-center py-6 text-tm-muted text-sm">
+          Nessun partecipante trovato per "{search}"
+        </div>
+      )}
 
       {pending.length > 0 && (
         <div className="card">
@@ -299,15 +336,17 @@ function TabPartecipanti({ participants, onRefresh }) {
         </div>
       )}
 
-      <div className="card">
-        <h3 className="font-bold text-sm mb-3 text-tm-accent">Schedine inviate ({submitted.length})</h3>
-        {submitted.length === 0
-          ? <p className="text-sm text-tm-muted">Nessuna schedina inviata</p>
-          : <div className="space-y-1">
-              {submitted.map(p => <ParticipantRow key={p.id} p={p} onDelete={handleDelete} />)}
-            </div>
-        }
-      </div>
+      {(submitted.length > 0 || !query) && (
+        <div className="card">
+          <h3 className="font-bold text-sm mb-3 text-tm-accent">Schedine inviate ({submitted.length})</h3>
+          {submitted.length === 0
+            ? <p className="text-sm text-tm-muted">Nessuna schedina inviata</p>
+            : <div className="space-y-1">
+                {submitted.map(p => <ParticipantRow key={p.id} p={p} onDelete={handleDelete} />)}
+              </div>
+          }
+        </div>
+      )}
     </div>
   )
 }
