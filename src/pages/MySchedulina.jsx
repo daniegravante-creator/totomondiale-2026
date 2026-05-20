@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle2, Trophy, Star, Users } from 'lucide-react'
+import { CheckCircle2, Trophy, Star, Users, Edit3 } from 'lucide-react'
 import { useParticipant } from '../context/ParticipantContext'
 import LoadingSpinner from '../components/LoadingSpinner'
+import Countdown, { DEADLINE_UTC, KICKOFF_UTC, isBeforeDeadline } from '../components/Countdown'
 import { getAllTeams, getGroupMatches, getParticipantMatchPredictions, getParticipantAdvPrediction } from '../lib/supabase'
 
 const GROUPS = ['A','B','C','D','E','F','G','H','I','J','K','L']
@@ -46,6 +47,7 @@ export default function MySchedulina() {
 
   if (loading) return <LoadingSpinner text="Caricamento schedina…" />
 
+  const canEdit = isBeforeDeadline()
   const OUTCOME_COLORS = { '1': 'text-blue-400 border-blue-600/40 bg-blue-900/20', 'X': 'text-yellow-400 border-yellow-600/40 bg-yellow-900/20', '2': 'text-red-400 border-red-600/40 bg-red-900/20' }
 
   return (
@@ -60,6 +62,32 @@ export default function MySchedulina() {
           <p className="text-tm-muted text-sm">{participant?.first_name} {participant?.last_name}</p>
         </div>
         <span className="badge-accent ml-auto">Inviata</span>
+      </div>
+
+      {/* Countdown + Modifica */}
+      <div className="card-sm space-y-3">
+        <Countdown
+          target={KICKOFF_UTC}
+          compact
+          label="Inizio Mondiali"
+          expiredText="Il Mondiale 2026 è iniziato!"
+        />
+        {canEdit && (
+          <>
+            <div className="accent-divider my-0" />
+            <Countdown
+              target={DEADLINE_UTC}
+              compact
+              label="Tempo rimasto per modificare"
+            />
+            <button
+              onClick={() => navigate('/schedina')}
+              className="btn-outline w-full flex items-center justify-center gap-2 text-sm"
+            >
+              <Edit3 size={15} /> Modifica la schedina
+            </button>
+          </>
+        )}
       </div>
 
       {/* ── Avanzamento torneo ── */}

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Trophy, Coins, RefreshCw, ChevronDown, ChevronUp, Info } from 'lucide-react'
 import LoadingSpinner from '../components/LoadingSpinner'
-import { getAllParticipants, getAllTeams, getAllMatches, getAllMatchPredictions, getAllAdvPredictions, getTournamentResults } from '../lib/supabase'
-import { calculateScore, rankParticipants, calculatePrizes } from '../lib/scoring'
+import { getAllParticipants, getAllTeams, getAllMatches, getAllMatchPredictions, getAllAdvPredictions, getTournamentResults, getAllSettings } from '../lib/supabase'
+import { calculateScore, rankParticipants, calculatePrizes, DEFAULT_PRIZE_CONFIG } from '../lib/scoring'
 import { formatCurrency, getOrdinal } from '../lib/utils'
 
 export default function Classifica() {
@@ -16,14 +16,24 @@ export default function Classifica() {
 
   const load = useCallback(async () => {
     try {
-      const [participants, allTeams, matches, matchPreds, advPreds, tourResult] = await Promise.all([
+      const [participants, allTeams, matches, matchPreds, advPreds, tourResult, settings] = await Promise.all([
         getAllParticipants(),
         getAllTeams(),
         getAllMatches(),
         getAllMatchPredictions(),
         getAllAdvPredictions(),
         getTournamentResults(),
+        getAllSettings(),
       ])
+
+      // Leggi config premi da settings o usa default
+      const prizeConfig = {
+        entryFee:  parseFloat(settings.entry_fee)   || DEFAULT_PRIZE_CONFIG.entryFee,
+        adminRate: parseFloat(settings.admin_rate)   || DEFAULT_PRIZE_CONFIG.adminRate,
+        firstPct:  parseFloat(settings.first_pct)    || DEFAULT_PRIZE_CONFIG.firstPct,
+        secondPct: parseFloat(settings.second_pct)   || DEFAULT_PRIZE_CONFIG.secondPct,
+        thirdPct:  parseFloat(settings.third_pct)    || DEFAULT_PRIZE_CONFIG.thirdPct,
+      }
 
       setTeams(allTeams)
 
@@ -56,7 +66,7 @@ export default function Classifica() {
 
       const r = rankParticipants(scored)
       setRanked(r)
-      setPrizes(r.length > 0 ? calculatePrizes(r) : null)
+      setPrizes(r.length > 0 ? calculatePrizes(r, prizeConfig) : null)
       setLastUpdate(new Date())
     } catch (e) {
       console.error(e)

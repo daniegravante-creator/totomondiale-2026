@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { getParticipantByCode } from '../lib/supabase'
 import { checkAdminPassword } from '../lib/utils'
 import { useParticipant } from '../context/ParticipantContext'
+import Countdown, { KICKOFF_UTC } from '../components/Countdown'
 
 export default function Login() {
   const { login, loginAdmin } = useParticipant()
@@ -58,7 +59,7 @@ export default function Login() {
   return (
     <div className="min-h-[70dvh] flex flex-col items-center justify-center animate-fade-in">
       {/* Hero */}
-      <div className="text-center mb-10">
+      <div className="text-center mb-8">
         <img
           src="/coppa.png"
           alt="Coppa del Mondo FIFA"
@@ -70,10 +71,20 @@ export default function Login() {
         <p className="text-6xl sm:text-7xl font-black text-tm-border-bright -mt-1 tracking-tighter select-none">
           2026
         </p>
-        <p className="text-tm-muted-light mt-4 text-sm">
-          Inserisci il tuo codice personale per accedere
-        </p>
       </div>
+
+      {/* Countdown al Mondiale */}
+      <div className="mb-8 w-full max-w-sm">
+        <Countdown
+          target={KICKOFF_UTC}
+          label="Inizio Mondiali"
+          expiredText="Il Mondiale 2026 è iniziato!"
+        />
+      </div>
+
+      <p className="text-tm-muted-light mb-4 text-sm">
+        Inserisci il tuo codice personale per accedere
+      </p>
 
       {/* Card principale */}
       <div className="w-full max-w-sm">

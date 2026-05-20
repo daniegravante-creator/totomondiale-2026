@@ -1,7 +1,7 @@
 -- ============================================================
 -- TotoMondiale 2026 — GIRONI E PARTITE REALI
+-- Orari ufficiali (fonte: Sky Sport) — UTC (ora italiana -2)
 -- Eseguire nell'SQL Editor di Supabase
--- Sostituisce i dati placeholder con i gironi ufficiali
 -- ============================================================
 
 -- Pulizia dati esistenti
@@ -124,100 +124,115 @@ INSERT INTO teams (name, flag, group_letter, sort_order) VALUES ('Ghana',       
 INSERT INTO teams (name, flag, group_letter, sort_order) VALUES ('Panama',          '🇵🇦', 'L', 4) RETURNING id INTO panama_id;
 
 -- ============================================================
--- INSERIMENTO 72 PARTITE (ordine cronologico reale)
+-- INSERIMENTO 72 PARTITE — orari ufficiali (UTC = ora italiana -2)
 -- ============================================================
 
--- ── PARTITA 1-10 ──────────────────────────────────────────
+-- ── GIRONE A ──────────────────────────────────────────────
 INSERT INTO matches (home_team_id, away_team_id, group_letter, matchday, match_number, scheduled_at, round) VALUES
-  (messico_id,     sudafrica_id,   'A', 1,  1, '2026-06-11 18:00:00+00', 'group'),
-  (corea_id,       repceca_id,     'A', 1,  2, '2026-06-12 17:00:00+00', 'group'),
-  (canada_id,      bosnia_id,      'B', 1,  3, '2026-06-12 20:00:00+00', 'group'),
-  (usa_id,         paraguay_id,    'D', 1,  4, '2026-06-13 17:00:00+00', 'group'),
-  (qatar_id,       svizzera_id,    'B', 1,  5, '2026-06-13 20:00:00+00', 'group'),
-  (brasile_id,     marocco_id,     'C', 1,  6, '2026-06-14 17:00:00+00', 'group'),
-  (haiti_id,       scozia_id,      'C', 1,  7, '2026-06-14 18:00:00+00', 'group'),
-  (australia_id,   turchia_id,     'D', 1,  8, '2026-06-14 20:00:00+00', 'group'),
-  (germania_id,    curacao_id,     'E', 1,  9, '2026-06-14 21:00:00+00', 'group'),
-  (paesibassi_id,  giappone_id,    'F', 1, 10, '2026-06-14 23:00:00+00', 'group');
+  (messico_id,     sudafrica_id,    'A', 1,  1, '2026-06-11 19:00:00+00', 'group'),  -- 11/06 21:00 IT
+  (corea_id,       repceca_id,      'A', 1,  2, '2026-06-12 02:00:00+00', 'group'),  -- 12/06 04:00 IT
+  (repceca_id,     sudafrica_id,    'A', 2,  3, '2026-06-18 16:00:00+00', 'group'),  -- 18/06 18:00 IT
+  (messico_id,     corea_id,        'A', 2,  4, '2026-06-19 01:00:00+00', 'group'),  -- 19/06 03:00 IT
+  (sudafrica_id,   corea_id,        'A', 3,  5, '2026-06-25 01:00:00+00', 'group'),  -- 25/06 03:00 IT
+  (repceca_id,     messico_id,      'A', 3,  6, '2026-06-25 01:00:00+00', 'group');  -- 25/06 03:00 IT
 
--- ── PARTITA 11-20 ─────────────────────────────────────────
+-- ── GIRONE B ──────────────────────────────────────────────
 INSERT INTO matches (home_team_id, away_team_id, group_letter, matchday, match_number, scheduled_at, round) VALUES
-  (costavorio_id,  ecuador_id,     'E', 1, 11, '2026-06-15 17:00:00+00', 'group'),
-  (svezia_id,      tunisia_id,     'F', 1, 12, '2026-06-15 18:00:00+00', 'group'),
-  (spagna_id,      capoverde_id,   'H', 1, 13, '2026-06-15 20:00:00+00', 'group'),
-  (belgio_id,      egitto_id,      'G', 1, 14, '2026-06-15 23:00:00+00', 'group'),
-  (arabia_id,      uruguay_id,     'H', 1, 15, '2026-06-16 17:00:00+00', 'group'),
-  (iran_id,        nuovazelanda_id,'G', 1, 16, '2026-06-16 18:00:00+00', 'group'),
-  (francia_id,     senegal_id,     'I', 1, 17, '2026-06-16 20:00:00+00', 'group'),
-  (iraq_id,        norvegia_id,    'I', 1, 18, '2026-06-17 17:00:00+00', 'group'),
-  (argentina_id,   algeria_id,     'J', 1, 19, '2026-06-17 18:00:00+00', 'group'),
-  (austria_id,     giordania_id,   'J', 1, 20, '2026-06-17 20:00:00+00', 'group');
+  (canada_id,      bosnia_id,       'B', 1,  7, '2026-06-12 19:00:00+00', 'group'),  -- 12/06 21:00 IT
+  (svizzera_id,    qatar_id,        'B', 1,  8, '2026-06-13 19:00:00+00', 'group'),  -- 13/06 21:00 IT
+  (svizzera_id,    bosnia_id,       'B', 2,  9, '2026-06-18 19:00:00+00', 'group'),  -- 18/06 21:00 IT
+  (canada_id,      qatar_id,        'B', 2, 10, '2026-06-19 22:00:00+00', 'group'),  -- 20/06 00:00 IT
+  (svizzera_id,    canada_id,       'B', 3, 11, '2026-06-24 19:00:00+00', 'group'),  -- 24/06 21:00 IT
+  (bosnia_id,      qatar_id,        'B', 3, 12, '2026-06-24 19:00:00+00', 'group');  -- 24/06 21:00 IT
 
--- ── PARTITA 21-30 ─────────────────────────────────────────
+-- ── GIRONE C ──────────────────────────────────────────────
 INSERT INTO matches (home_team_id, away_team_id, group_letter, matchday, match_number, scheduled_at, round) VALUES
-  (portogallo_id,  congo_id,       'K', 1, 21, '2026-06-17 21:00:00+00', 'group'),
-  (inghilterra_id, croazia_id,     'L', 1, 22, '2026-06-17 23:00:00+00', 'group'),
-  (ghana_id,       panama_id,      'L', 1, 23, '2026-06-18 17:00:00+00', 'group'),
-  (uzbekistan_id,  colombia_id,    'K', 1, 24, '2026-06-18 18:00:00+00', 'group'),
-  (repceca_id,     sudafrica_id,   'A', 2, 25, '2026-06-18 20:00:00+00', 'group'),
-  (svizzera_id,    bosnia_id,      'B', 2, 26, '2026-06-18 23:00:00+00', 'group'),
-  (canada_id,      qatar_id,       'B', 2, 27, '2026-06-19 17:00:00+00', 'group'),
-  (messico_id,     corea_id,       'A', 2, 28, '2026-06-19 18:00:00+00', 'group'),
-  (usa_id,         australia_id,   'D', 2, 29, '2026-06-19 20:00:00+00', 'group'),
-  (scozia_id,      marocco_id,     'C', 2, 30, '2026-06-20 17:00:00+00', 'group');
+  (brasile_id,     marocco_id,      'C', 1, 13, '2026-06-14 22:00:00+00', 'group'),  -- 15/06 00:00 IT
+  (haiti_id,       scozia_id,       'C', 1, 14, '2026-06-14 01:00:00+00', 'group'),  -- 14/06 03:00 IT
+  (scozia_id,      marocco_id,      'C', 2, 15, '2026-06-20 22:00:00+00', 'group'),  -- 21/06 00:00 IT
+  (brasile_id,     haiti_id,        'C', 2, 16, '2026-06-20 01:00:00+00', 'group'),  -- 20/06 03:00 IT
+  (marocco_id,     haiti_id,        'C', 3, 17, '2026-06-25 22:00:00+00', 'group'),  -- 26/06 00:00 IT
+  (scozia_id,      brasile_id,      'C', 3, 18, '2026-06-25 22:00:00+00', 'group');  -- 26/06 00:00 IT
 
--- ── PARTITA 31-40 ─────────────────────────────────────────
+-- ── GIRONE D ──────────────────────────────────────────────
 INSERT INTO matches (home_team_id, away_team_id, group_letter, matchday, match_number, scheduled_at, round) VALUES
-  (brasile_id,     haiti_id,       'C', 2, 31, '2026-06-20 18:00:00+00', 'group'),
-  (turchia_id,     paraguay_id,    'D', 2, 32, '2026-06-20 20:00:00+00', 'group'),
-  (paesibassi_id,  svezia_id,      'F', 2, 33, '2026-06-20 23:00:00+00', 'group'),
-  (germania_id,    costavorio_id,  'E', 2, 34, '2026-06-20 21:00:00+00', 'group'),
-  (ecuador_id,     curacao_id,     'E', 2, 35, '2026-06-21 17:00:00+00', 'group'),
-  (tunisia_id,     giappone_id,    'F', 2, 36, '2026-06-21 18:00:00+00', 'group'),
-  (spagna_id,      arabia_id,      'H', 2, 37, '2026-06-21 20:00:00+00', 'group'),
-  (belgio_id,      iran_id,        'G', 2, 38, '2026-06-21 23:00:00+00', 'group'),
-  (uruguay_id,     capoverde_id,   'H', 2, 39, '2026-06-22 17:00:00+00', 'group'),
-  (nuovazelanda_id,egitto_id,      'G', 2, 40, '2026-06-22 18:00:00+00', 'group');
+  (usa_id,         paraguay_id,     'D', 1, 19, '2026-06-13 01:00:00+00', 'group'),  -- 13/06 03:00 IT
+  (australia_id,   turchia_id,      'D', 1, 20, '2026-06-13 04:00:00+00', 'group'),  -- 13/06 06:00 IT
+  (turchia_id,     paraguay_id,     'D', 2, 21, '2026-06-19 04:00:00+00', 'group'),  -- 19/06 06:00 IT
+  (usa_id,         australia_id,    'D', 2, 22, '2026-06-19 19:00:00+00', 'group'),  -- 19/06 21:00 IT
+  (turchia_id,     usa_id,          'D', 3, 23, '2026-06-26 02:00:00+00', 'group'),  -- 26/06 04:00 IT
+  (paraguay_id,    australia_id,    'D', 3, 24, '2026-06-26 02:00:00+00', 'group');  -- 26/06 04:00 IT
 
--- ── PARTITA 41-50 ─────────────────────────────────────────
+-- ── GIRONE E ──────────────────────────────────────────────
 INSERT INTO matches (home_team_id, away_team_id, group_letter, matchday, match_number, scheduled_at, round) VALUES
-  (argentina_id,   austria_id,     'J', 2, 41, '2026-06-22 20:00:00+00', 'group'),
-  (francia_id,     iraq_id,        'I', 2, 42, '2026-06-22 23:00:00+00', 'group'),
-  (norvegia_id,    senegal_id,     'I', 2, 43, '2026-06-23 17:00:00+00', 'group'),
-  (giordania_id,   algeria_id,     'J', 2, 44, '2026-06-23 18:00:00+00', 'group'),
-  (portogallo_id,  uzbekistan_id,  'K', 2, 45, '2026-06-23 20:00:00+00', 'group'),
-  (inghilterra_id, ghana_id,       'L', 2, 46, '2026-06-23 23:00:00+00', 'group'),
-  (panama_id,      croazia_id,     'L', 2, 47, '2026-06-24 17:00:00+00', 'group'),
-  (colombia_id,    congo_id,       'K', 2, 48, '2026-06-24 18:00:00+00', 'group'),
-  (svizzera_id,    canada_id,      'B', 3, 49, '2026-06-24 20:00:00+00', 'group'),
-  (bosnia_id,      qatar_id,       'B', 3, 50, '2026-06-24 20:00:00+00', 'group');
+  (germania_id,    curacao_id,      'E', 1, 25, '2026-06-14 17:00:00+00', 'group'),  -- 14/06 19:00 IT
+  (costavorio_id,  ecuador_id,      'E', 1, 26, '2026-06-14 20:00:00+00', 'group'),  -- 14/06 22:00 IT
+  (germania_id,    costavorio_id,   'E', 2, 27, '2026-06-20 20:00:00+00', 'group'),  -- 20/06 22:00 IT
+  (ecuador_id,     curacao_id,      'E', 2, 28, '2026-06-21 00:00:00+00', 'group'),  -- 21/06 02:00 IT
+  (curacao_id,     costavorio_id,   'E', 3, 29, '2026-06-25 20:00:00+00', 'group'),  -- 25/06 22:00 IT
+  (ecuador_id,     germania_id,     'E', 3, 30, '2026-06-25 20:00:00+00', 'group');  -- 25/06 22:00 IT
 
--- ── PARTITA 51-60 ─────────────────────────────────────────
+-- ── GIRONE F ──────────────────────────────────────────────
 INSERT INTO matches (home_team_id, away_team_id, group_letter, matchday, match_number, scheduled_at, round) VALUES
-  (marocco_id,     haiti_id,       'C', 3, 51, '2026-06-25 18:00:00+00', 'group'),
-  (scozia_id,      brasile_id,     'C', 3, 52, '2026-06-25 18:00:00+00', 'group'),
-  (repceca_id,     messico_id,     'A', 3, 53, '2026-06-25 20:00:00+00', 'group'),
-  (sudafrica_id,   corea_id,       'A', 3, 54, '2026-06-25 20:00:00+00', 'group'),
-  (ecuador_id,     germania_id,    'E', 3, 55, '2026-06-25 23:00:00+00', 'group'),
-  (curacao_id,     costavorio_id,  'E', 3, 56, '2026-06-25 23:00:00+00', 'group'),
-  (tunisia_id,     paesibassi_id,  'F', 3, 57, '2026-06-26 18:00:00+00', 'group'),
-  (giappone_id,    svezia_id,      'F', 3, 58, '2026-06-26 18:00:00+00', 'group'),
-  (turchia_id,     usa_id,         'D', 3, 59, '2026-06-26 20:00:00+00', 'group'),
-  (paraguay_id,    australia_id,   'D', 3, 60, '2026-06-26 20:00:00+00', 'group');
+  (paesibassi_id,  giappone_id,     'F', 1, 31, '2026-06-14 20:00:00+00', 'group'),  -- 14/06 22:00 IT
+  (svezia_id,      tunisia_id,      'F', 1, 32, '2026-06-15 02:00:00+00', 'group'),  -- 15/06 04:00 IT
+  (tunisia_id,     giappone_id,     'F', 2, 33, '2026-06-20 04:00:00+00', 'group'),  -- 20/06 06:00 IT
+  (paesibassi_id,  svezia_id,       'F', 2, 34, '2026-06-20 17:00:00+00', 'group'),  -- 20/06 19:00 IT
+  (tunisia_id,     paesibassi_id,   'F', 3, 35, '2026-06-25 23:00:00+00', 'group'),  -- 26/06 01:00 IT
+  (giappone_id,    svezia_id,       'F', 3, 36, '2026-06-25 23:00:00+00', 'group');  -- 26/06 01:00 IT
 
--- ── PARTITA 61-72 ─────────────────────────────────────────
+-- ── GIRONE G ──────────────────────────────────────────────
 INSERT INTO matches (home_team_id, away_team_id, group_letter, matchday, match_number, scheduled_at, round) VALUES
-  (norvegia_id,    francia_id,     'I', 3, 61, '2026-06-26 23:00:00+00', 'group'),
-  (senegal_id,     iraq_id,        'I', 3, 62, '2026-06-26 23:00:00+00', 'group'),
-  (uruguay_id,     spagna_id,      'H', 3, 63, '2026-06-27 18:00:00+00', 'group'),
-  (capoverde_id,   arabia_id,      'H', 3, 64, '2026-06-27 18:00:00+00', 'group'),
-  (nuovazelanda_id,belgio_id,      'G', 3, 65, '2026-06-27 20:00:00+00', 'group'),
-  (egitto_id,      iran_id,        'G', 3, 66, '2026-06-27 20:00:00+00', 'group'),
-  (panama_id,      inghilterra_id, 'L', 3, 67, '2026-06-27 23:00:00+00', 'group'),
-  (croazia_id,     ghana_id,       'L', 3, 68, '2026-06-27 23:00:00+00', 'group'),
-  (colombia_id,    portogallo_id,  'K', 3, 69, '2026-06-28 18:00:00+00', 'group'),
-  (congo_id,       uzbekistan_id,  'K', 3, 70, '2026-06-28 18:00:00+00', 'group'),
-  (giordania_id,   argentina_id,   'J', 3, 71, '2026-06-28 20:00:00+00', 'group'),
-  (algeria_id,     austria_id,     'J', 3, 72, '2026-06-28 20:00:00+00', 'group');
+  (belgio_id,      egitto_id,       'G', 1, 37, '2026-06-15 19:00:00+00', 'group'),  -- 15/06 21:00 IT
+  (iran_id,        nuovazelanda_id, 'G', 1, 38, '2026-06-16 01:00:00+00', 'group'),  -- 16/06 03:00 IT
+  (belgio_id,      iran_id,         'G', 2, 39, '2026-06-21 19:00:00+00', 'group'),  -- 21/06 21:00 IT
+  (nuovazelanda_id,egitto_id,       'G', 2, 40, '2026-06-22 01:00:00+00', 'group'),  -- 22/06 03:00 IT
+  (nuovazelanda_id,belgio_id,       'G', 3, 41, '2026-06-27 03:00:00+00', 'group'),  -- 27/06 05:00 IT
+  (egitto_id,      iran_id,         'G', 3, 42, '2026-06-27 03:00:00+00', 'group');  -- 27/06 05:00 IT
+
+-- ── GIRONE H ──────────────────────────────────────────────
+INSERT INTO matches (home_team_id, away_team_id, group_letter, matchday, match_number, scheduled_at, round) VALUES
+  (spagna_id,      capoverde_id,    'H', 1, 43, '2026-06-15 16:00:00+00', 'group'),  -- 15/06 18:00 IT
+  (arabia_id,      uruguay_id,      'H', 1, 44, '2026-06-16 22:00:00+00', 'group'),  -- 17/06 00:00 IT
+  (spagna_id,      arabia_id,       'H', 2, 45, '2026-06-21 16:00:00+00', 'group'),  -- 21/06 18:00 IT
+  (uruguay_id,     capoverde_id,    'H', 2, 46, '2026-06-22 22:00:00+00', 'group'),  -- 23/06 00:00 IT
+  (capoverde_id,   arabia_id,       'H', 3, 47, '2026-06-27 00:00:00+00', 'group'),  -- 27/06 02:00 IT
+  (uruguay_id,     spagna_id,       'H', 3, 48, '2026-06-27 00:00:00+00', 'group');  -- 27/06 02:00 IT
+
+-- ── GIRONE I ──────────────────────────────────────────────
+INSERT INTO matches (home_team_id, away_team_id, group_letter, matchday, match_number, scheduled_at, round) VALUES
+  (francia_id,     senegal_id,      'I', 1, 49, '2026-06-16 19:00:00+00', 'group'),  -- 16/06 21:00 IT
+  (iraq_id,        norvegia_id,     'I', 1, 50, '2026-06-17 22:00:00+00', 'group'),  -- 18/06 00:00 IT
+  (francia_id,     iraq_id,         'I', 2, 51, '2026-06-22 21:00:00+00', 'group'),  -- 22/06 23:00 IT
+  (norvegia_id,    senegal_id,      'I', 2, 52, '2026-06-23 00:00:00+00', 'group'),  -- 23/06 02:00 IT
+  (norvegia_id,    francia_id,      'I', 3, 53, '2026-06-26 19:00:00+00', 'group'),  -- 26/06 21:00 IT
+  (senegal_id,     iraq_id,         'I', 3, 54, '2026-06-26 19:00:00+00', 'group');  -- 26/06 21:00 IT
+
+-- ── GIRONE J ──────────────────────────────────────────────
+INSERT INTO matches (home_team_id, away_team_id, group_letter, matchday, match_number, scheduled_at, round) VALUES
+  (austria_id,     giordania_id,    'J', 1, 55, '2026-06-16 04:00:00+00', 'group'),  -- 16/06 06:00 IT
+  (argentina_id,   algeria_id,      'J', 1, 56, '2026-06-17 01:00:00+00', 'group'),  -- 17/06 03:00 IT
+  (argentina_id,   austria_id,      'J', 2, 57, '2026-06-22 17:00:00+00', 'group'),  -- 22/06 19:00 IT
+  (giordania_id,   algeria_id,      'J', 2, 58, '2026-06-23 03:00:00+00', 'group'),  -- 23/06 05:00 IT
+  (algeria_id,     austria_id,      'J', 3, 59, '2026-06-28 02:00:00+00', 'group'),  -- 28/06 04:00 IT
+  (giordania_id,   argentina_id,    'J', 3, 60, '2026-06-28 02:00:00+00', 'group');  -- 28/06 04:00 IT
+
+-- ── GIRONE K ──────────────────────────────────────────────
+INSERT INTO matches (home_team_id, away_team_id, group_letter, matchday, match_number, scheduled_at, round) VALUES
+  (portogallo_id,  congo_id,        'K', 1, 61, '2026-06-17 17:00:00+00', 'group'),  -- 17/06 19:00 IT
+  (uzbekistan_id,  colombia_id,     'K', 1, 62, '2026-06-18 02:00:00+00', 'group'),  -- 18/06 04:00 IT
+  (portogallo_id,  uzbekistan_id,   'K', 2, 63, '2026-06-23 17:00:00+00', 'group'),  -- 23/06 19:00 IT
+  (colombia_id,    congo_id,        'K', 2, 64, '2026-06-24 02:00:00+00', 'group'),  -- 24/06 04:00 IT
+  (colombia_id,    portogallo_id,   'K', 3, 65, '2026-06-27 23:30:00+00', 'group'),  -- 28/06 01:30 IT
+  (congo_id,       uzbekistan_id,   'K', 3, 66, '2026-06-27 23:30:00+00', 'group');  -- 28/06 01:30 IT
+
+-- ── GIRONE L ──────────────────────────────────────────────
+INSERT INTO matches (home_team_id, away_team_id, group_letter, matchday, match_number, scheduled_at, round) VALUES
+  (inghilterra_id, croazia_id,      'L', 1, 67, '2026-06-17 20:00:00+00', 'group'),  -- 17/06 22:00 IT
+  (ghana_id,       panama_id,       'L', 1, 68, '2026-06-17 23:00:00+00', 'group'),  -- 18/06 01:00 IT
+  (inghilterra_id, ghana_id,        'L', 2, 69, '2026-06-23 20:00:00+00', 'group'),  -- 23/06 22:00 IT
+  (panama_id,      croazia_id,      'L', 2, 70, '2026-06-23 23:00:00+00', 'group'),  -- 24/06 01:00 IT
+  (panama_id,      inghilterra_id,  'L', 3, 71, '2026-06-27 21:00:00+00', 'group'),  -- 27/06 23:00 IT
+  (croazia_id,     ghana_id,        'L', 3, 72, '2026-06-27 21:00:00+00', 'group');  -- 27/06 23:00 IT
 
 END $$;

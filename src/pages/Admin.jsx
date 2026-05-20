@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Shield, UserPlus, Users, ClipboardList, Settings,
   Copy, Check, Trash2, RefreshCw, Save, ChevronDown, ChevronUp,
-  Wifi, WifiOff, Trophy, Star, AlertTriangle
+  Wifi, WifiOff, Trophy, Star, AlertTriangle, Download, Database
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useParticipant } from '../context/ParticipantContext'
@@ -13,10 +13,12 @@ import {
   getAllParticipants, getAllTeams, getAllMatches,
   createParticipant, deleteParticipant,
   updateMatchResult, getTournamentResults, updateTournamentResults,
-  getSetting, getAllSettings, setSetting
+  getSetting, getAllSettings, setSetting,
+  getAllMatchPredictions, getAllAdvPredictions
 } from '../lib/supabase'
 import { generateParticipantCode, formatCurrency, formatDate } from '../lib/utils'
 import { syncResults } from '../lib/apiFootball'
+import { DEFAULT_PRIZE_CONFIG } from '../lib/scoring'
 
 const TABS = [
   { id: 'codici',     label: 'Codici',      icon: <UserPlus size={15} /> },
@@ -85,7 +87,7 @@ export default function Admin() {
       <div className="grid grid-cols-3 gap-2">
         <StatCard label="Iscritti" value={participants.length} />
         <StatCard label="Schedine" value={participants.filter(p => p.has_submitted).length} />
-        <StatCard label="Montepremi" value={formatCurrency(participants.length * 25 * 0.85)} small />
+        <StatCard label="Montepremi" value={formatCurrency(participants.length * (parseFloat(settings.entry_fee) || DEFAULT_PRIZE_CONFIG.entryFee) * (1 - (parseFloat(settings.admin_rate) || DEFAULT_PRIZE_CONFIG.adminRate)))} small />
       </div>
 
       {/* Tabs */}
@@ -109,7 +111,7 @@ export default function Admin() {
       {activeTab === 'partecipanti' && <TabPartecipanti participants={participants} onRefresh={loadAll} />}
       {activeTab === 'risultati'    && <TabRisultati matches={matches} teams={teams} settings={settings} onRefresh={loadAll} />}
       {activeTab === 'torneo'       && <TabTorneo tourResult={tourResult} teams={teams} onRefresh={loadAll} />}
-      {activeTab === 'settings'     && <TabSettings settings={settings} onRefresh={loadAll} />}
+      {activeTab === 'settings'     && <TabSettings settings={settings} participants={participants} matches={matches} teams={teams} onRefresh={loadAll} />}
     </div>
   )
 }
@@ -753,20 +755,116 @@ function TabTorneo({ tourResult, teams, onRefresh }) {
 // ══════════════════════════════════════════════════════════
 // TAB — IMPOSTAZIONI
 // ══════════════════════════════════════════════════════════
-function TabSettings({ settings, onRefresh }) {
+function TabSettings({ settings, participants, matches, teams, onRefresh }) {
   const [apiKey,   setApiKey]   = useState(settings.api_football_key ?? '')
   const [status,   setStatus]   = useState(settings.tournament_status ?? 'upcoming')
+  const [entryFee, setEntryFee] = useState(settings.entry_fee ?? String(DEFAULT_PRIZE_CONFIG.entryFee))
+  const [adminRate,setAdminRate]= useState(settings.admin_rate ?? String(DEFAULT_PRIZE_CONFIG.adminRate * 100))
+  const [firstPct, setFirstPct] = useState(settings.first_pct ?? String(DEFAULT_PRIZE_CONFIG.firstPct * 100))
+  const [secondPct,setSecondPct]= useState(settings.second_pct ?? String(DEFAULT_PRIZE_CONFIG.secondPct * 100))
+  const [thirdPct, setThirdPct] = useState(settings.third_pct ?? String(DEFAULT_PRIZE_CONFIG.thirdPct * 100))
   const [saving,   setSaving]   = useState(false)
+  const [exporting,setExporting]= useState(false)
 
   const save = async () => {
+    // Validazione percentuali
+    const f = parseFloat(firstPct) || 0
+    const s = parseFloat(secondPct) || 0
+    const t = parseFloat(thirdPct) || 0
+    if (Math.abs(f + s + t - 100) > 0.1) {
+      toast.error(`Le percentuali premi devono sommare 100% (ora: ${f + s + t}%)`)
+      return
+    }
+
     setSaving(true)
     try {
       await setSetting('api_football_key', apiKey.trim())
       await setSetting('tournament_status', status)
+      await setSetting('entry_fee', entryFee)
+      await setSetting('admin_rate', String(parseFloat(adminRate) / 100))
+      await setSetting('first_pct', String(parseFloat(firstPct) / 100))
+      await setSetting('second_pct', String(parseFloat(secondPct) / 100))
+      await setSetting('third_pct', String(parseFloat(thirdPct) / 100))
       toast.success('Impostazioni salvate')
       onRefresh()
     } catch (e) { toast.error('Errore: ' + e.message) }
     setSaving(false)
+  }
+
+  // ── Backup/Export ──
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const [matchPreds, advPreds, tourResult] = await Promise.all([
+        getAllMatchPredictions(),
+        getAllAdvPredictions(),
+        getTournamentResults(),
+      ])
+
+      const teamMap = Object.fromEntries(teams.map(t => [t.id, t.name]))
+
+      // Foglio 1: Partecipanti
+      let csv = '﻿' // BOM per Excel
+      csv += 'PARTECIPANTI\n'
+      csv += 'Nome;Cognome;Codice;Schedina Inviata;Data Iscrizione\n'
+      for (const p of participants) {
+        csv += `${p.first_name};${p.last_name};${p.code};${p.has_submitted ? 'Si' : 'No'};${p.created_at?.slice(0,10) ?? ''}\n`
+      }
+
+      // Foglio 2: Pronostici gironi
+      csv += '\n\nPRONOSTICI GIRONI\n'
+      csv += 'Partecipante;Partita;Casa;Ospite;Pronostico\n'
+      for (const mp of matchPreds) {
+        const match = matches.find(m => m.id === mp.match_id)
+        const part  = participants.find(p => p.id === mp.participant_id)
+        if (!match || !part) continue
+        const ht = match.home_team?.name ?? teamMap[match.home_team_id] ?? '?'
+        const at = match.away_team?.name ?? teamMap[match.away_team_id] ?? '?'
+        csv += `${part.first_name} ${part.last_name};#${match.match_number};${ht};${at};${mp.predicted_outcome}\n`
+      }
+
+      // Foglio 3: Pronostici avanzamento
+      csv += '\n\nPRONOSTICI AVANZAMENTO\n'
+      csv += 'Partecipante;Semifinaliste;Finaliste;Vincitore;Capocannoniere\n'
+      for (const adv of advPreds) {
+        const part = participants.find(p => p.id === adv.participant_id)
+        if (!part) continue
+        const semis = (adv.semifinalist_ids ?? []).map(id => teamMap[id] ?? '?').join(', ')
+        const fins  = (adv.finalist_ids ?? []).map(id => teamMap[id] ?? '?').join(', ')
+        const win   = teamMap[adv.winner_id] ?? '—'
+        csv += `${part.first_name} ${part.last_name};${semis};${fins};${win};${adv.top_scorer ?? ''}\n`
+      }
+
+      // Foglio 4: Risultati partite
+      csv += '\n\nRISULTATI PARTITE\n'
+      csv += 'N;Girone;Casa;Ospite;Risultato;Stato\n'
+      for (const m of [...matches].sort((a,b) => a.match_number - b.match_number)) {
+        const ht = m.home_team?.name ?? teamMap[m.home_team_id] ?? '?'
+        const at = m.away_team?.name ?? teamMap[m.away_team_id] ?? '?'
+        const score = m.home_score !== null ? `${m.home_score}-${m.away_score}` : '—'
+        csv += `${m.match_number};${m.group_letter};${ht};${at};${score};${m.status}\n`
+      }
+
+      // Foglio 5: Torneo
+      csv += '\n\nRISULTATI TORNEO\n'
+      if (tourResult) {
+        csv += `Semifinaliste;${(tourResult.semifinalist_ids ?? []).map(id => teamMap[id] ?? '?').join(', ')}\n`
+        csv += `Finaliste;${(tourResult.finalist_ids ?? []).map(id => teamMap[id] ?? '?').join(', ')}\n`
+        csv += `Vincitore;${teamMap[tourResult.winner_id] ?? '—'}\n`
+        csv += `Capocannoniere;${(tourResult.top_scorer_names ?? []).join(', ') || '—'}\n`
+      }
+
+      // Download
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href     = url
+      a.download = `TotoMondiale_Backup_${new Date().toISOString().slice(0,10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success('Backup scaricato!')
+    } catch (e) { toast.error('Errore export: ' + e.message) }
+    setExporting(false)
   }
 
   return (
@@ -815,6 +913,62 @@ function TabSettings({ settings, onRefresh }) {
         </div>
       </div>
 
+      {/* Montepremi e percentuali */}
+      <div className="card space-y-3">
+        <div className="flex items-center gap-2 mb-1">
+          <Trophy size={14} className="text-tm-accent" />
+          <h3 className="font-bold text-sm">Montepremi e percentuali</h3>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-tm-muted mb-1 block">Quota partecipazione</label>
+            <div className="relative">
+              <input type="number" value={entryFee} onChange={e => setEntryFee(e.target.value)} className="input-field text-sm pr-8" min="1" />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-tm-muted text-sm">€</span>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-tm-muted mb-1 block">Quota gestori</label>
+            <div className="relative">
+              <input type="number" value={adminRate} onChange={e => setAdminRate(e.target.value)} className="input-field text-sm pr-8" min="0" max="100" />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-tm-muted text-sm">%</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="h-px bg-tm-border" />
+        <p className="text-xs text-tm-muted">Distribuzione premi (devono sommare 100%)</p>
+
+        <div className="grid grid-cols-3 gap-2">
+          <div>
+            <label className="text-xs text-tm-muted mb-1 block">1° posto</label>
+            <div className="relative">
+              <input type="number" value={firstPct} onChange={e => setFirstPct(e.target.value)} className="input-field text-sm pr-8" min="0" max="100" />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-tm-muted text-sm">%</span>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-tm-muted mb-1 block">2° posto</label>
+            <div className="relative">
+              <input type="number" value={secondPct} onChange={e => setSecondPct(e.target.value)} className="input-field text-sm pr-8" min="0" max="100" />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-tm-muted text-sm">%</span>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-tm-muted mb-1 block">3° posto</label>
+            <div className="relative">
+              <input type="number" value={thirdPct} onChange={e => setThirdPct(e.target.value)} className="input-field text-sm pr-8" min="0" max="100" />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-tm-muted text-sm">%</span>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-xs text-tm-muted">
+          L'ultimo classificato riceve la quota d'iscrizione ({entryFee}€). Se più ultimi a pari, il premio decade e va al 1°.
+        </p>
+      </div>
+
       <button
         onClick={save}
         disabled={saving}
@@ -823,6 +977,25 @@ function TabSettings({ settings, onRefresh }) {
         <Save size={16} />
         {saving ? 'Salvo…' : 'Salva impostazioni'}
       </button>
+
+      {/* Backup */}
+      <div className="card space-y-3">
+        <div className="flex items-center gap-2 mb-1">
+          <Database size={14} className="text-tm-accent" />
+          <h3 className="font-bold text-sm">Backup dati</h3>
+        </div>
+        <p className="text-xs text-tm-muted">
+          Esporta tutti i dati (partecipanti, pronostici, risultati) in un file CSV apribile con Excel.
+        </p>
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          className="btn-outline w-full flex items-center justify-center gap-2 text-sm"
+        >
+          <Download size={15} />
+          {exporting ? 'Esportazione…' : 'Scarica backup (CSV/Excel)'}
+        </button>
+      </div>
 
       <div className="card-sm border-yellow-700/30 bg-yellow-900/10">
         <p className="text-xs text-yellow-400 flex items-start gap-2">

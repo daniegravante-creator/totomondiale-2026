@@ -1,7 +1,13 @@
 import { getMatchOutcome } from './utils'
 
-const ENTRY_FEE   = 25  // €
-const ADMIN_RATE  = 0.15
+// Configurazione di default — sovrascrivibile dall'admin via settings
+export const DEFAULT_PRIZE_CONFIG = {
+  entryFee:   20,
+  adminRate:  0.15,
+  firstPct:   0.50,
+  secondPct:  0.30,
+  thirdPct:   0.20,
+}
 
 // ── Calcolo punti singolo partecipante ────────────────────
 
@@ -59,7 +65,6 @@ export function calculateScore({ matchPredictions, advPrediction, matchResults, 
 // ── Classifica con gestione ex aequo ─────────────────────
 
 export function rankParticipants(scored) {
-  // scored = [{ id, first_name, last_name, score: { total, ... } }]
   const sorted = [...scored].sort((a, b) => b.score.total - a.score.total)
 
   let rank = 1
@@ -73,16 +78,17 @@ export function rankParticipants(scored) {
 
 // ── Calcolo montepremi ────────────────────────────────────
 // Regole ex aequo:
-// • Più ultimi a pari punti → 25€ decade, aggiunto al premio del 1°
+// • Più ultimi a pari punti → premio ultimo decade, aggiunto al premio del 1°
 // • Più primi a pari punti → tutto (1°+2°+3°) diviso equamente tra i primi
 // • Singolo 1°, più secondi → 2°+3° accorpati e divisi tra i secondi
 
-export function calculatePrizes(ranked) {
+export function calculatePrizes(ranked, config = {}) {
+  const cfg = { ...DEFAULT_PRIZE_CONFIG, ...config }
   const N = ranked.length
   if (N === 0) return null
 
-  const total    = N * ENTRY_FEE
-  const adminFee = total * ADMIN_RATE
+  const total    = N * cfg.entryFee
+  const adminFee = Math.round(total * cfg.adminRate * 100) / 100
   const net      = total - adminFee
 
   const maxRank = Math.max(...ranked.map(p => p.rank))
@@ -93,33 +99,33 @@ export function calculatePrizes(ranked) {
 
   // Premio ultimo classificato
   const multipleLast = lastPlacers.length > 1
-  const lastPrize    = multipleLast ? 0 : ENTRY_FEE
+  const lastPrize    = multipleLast ? 0 : cfg.entryFee
   // Bonus da aggiungere al 1° se più ultimi a pari
-  const firstBonus   = multipleLast ? ENTRY_FEE : 0
+  const firstBonus   = multipleLast ? cfg.entryFee : 0
 
   // Base distribuibile tra 1°/2°/3°
-  const pool = net - ENTRY_FEE  // riserviamo sempre €25, poi li gestiamo
+  const pool = net - cfg.entryFee  // riserviamo quota ultimo, poi gestiamo
 
   // Caso: più primi a pari punti
   if (firstPlacers.length > 1) {
     const totalForFirsts = pool + firstBonus
     return {
-      N, total, adminFee, net,
+      N, total, adminFee, net, entryFee: cfg.entryFee,
       lastPlacers, lastPrize,
-      firstPlacers, eachFirst: totalForFirsts / firstPlacers.length,
+      firstPlacers, eachFirst: Math.round(totalForFirsts / firstPlacers.length * 100) / 100,
       secondPlacers: [], eachSecond: 0,
       thirdPlacers: [],  eachThird: 0,
       note: 'ex_aequo_first',
     }
   }
 
-  const firstPrize = pool * 0.5 + firstBonus
+  const firstPrize = pool * cfg.firstPct + firstBonus
 
   // Secondi classificati
   const second = ranked.filter(p => p.rank !== 1 && p.rank !== maxRank)
   if (second.length === 0) {
     return {
-      N, total, adminFee, net,
+      N, total, adminFee, net, entryFee: cfg.entryFee,
       lastPlacers, lastPrize,
       firstPlacers, eachFirst: firstPrize,
       secondPlacers: [], eachSecond: 0,
@@ -133,27 +139,27 @@ export function calculatePrizes(ranked) {
 
   // Caso: più secondi a pari punti
   if (secondPlacers.length > 1) {
-    const secondPool = pool * 0.5  // 2° + 3° accorpati
+    const secondPool = pool * (cfg.secondPct + cfg.thirdPct)
     return {
-      N, total, adminFee, net,
+      N, total, adminFee, net, entryFee: cfg.entryFee,
       lastPlacers, lastPrize,
       firstPlacers, eachFirst: firstPrize,
-      secondPlacers, eachSecond: secondPool / secondPlacers.length,
+      secondPlacers, eachSecond: Math.round(secondPool / secondPlacers.length * 100) / 100,
       thirdPlacers: [], eachThird: 0,
       note: 'ex_aequo_second',
     }
   }
 
-  const secondPrize = pool * 0.3
+  const secondPrize = pool * cfg.secondPct
 
   // Terzi classificati
   const thirdRank    = ranked.filter(p => p.rank > secondRank && p.rank !== maxRank)
   const minThirdRank = thirdRank.length > 0 ? Math.min(...thirdRank.map(p => p.rank)) : null
   const thirdPlacers = minThirdRank ? ranked.filter(p => p.rank === minThirdRank) : []
-  const thirdPrize   = thirdPlacers.length > 0 ? pool * 0.2 / thirdPlacers.length : 0
+  const thirdPrize   = thirdPlacers.length > 0 ? Math.round(pool * cfg.thirdPct / thirdPlacers.length * 100) / 100 : 0
 
   return {
-    N, total, adminFee, net,
+    N, total, adminFee, net, entryFee: cfg.entryFee,
     lastPlacers, lastPrize,
     firstPlacers, eachFirst: firstPrize,
     secondPlacers, eachSecond: secondPrize,

@@ -1,11 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronDown, ChevronUp, Users, Trophy, Star, Send, CheckCircle2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Users, Trophy, Star, Send, CheckCircle2, Clock, Edit3 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useParticipant } from '../context/ParticipantContext'
 import TeamSelector from '../components/TeamSelector'
 import LoadingSpinner from '../components/LoadingSpinner'
-import { getAllTeams, getGroupMatches, submitMatchPredictions, submitAdvPrediction, markParticipantSubmitted } from '../lib/supabase'
+import Countdown, { DEADLINE_UTC, KICKOFF_UTC, isBeforeDeadline } from '../components/Countdown'
+import {
+  getAllTeams, getGroupMatches, submitMatchPredictions, submitAdvPrediction,
+  markParticipantSubmitted, getParticipantMatchPredictions, getParticipantAdvPrediction,
+  setSetting
+} from '../lib/supabase'
 import { suggestPlayers } from '../data/players'
 
 const GROUPS = ['A','B','C','D','E','F','G','H','I','J','K','L']
@@ -18,6 +23,7 @@ export default function Schedina() {
   const [matches,     setMatches]     = useState([])
   const [loading,     setLoading]     = useState(true)
   const [submitting,  setSubmitting]  = useState(false)
+  const [isEditing,   setIsEditing]   = useState(false)
 
   // Stato pronostici
   const [predictions,   setPredictions]   = useState({})   // { matchId: '1'|'X'|'2' }
@@ -34,7 +40,25 @@ export default function Schedina() {
 
   useEffect(() => {
     if (!participant) { navigate('/'); return }
-    if (participant.has_submitted) { navigate('/mia-schedina'); return }
+
+    // Se la deadline è passata, blocca
+    if (!isBeforeDeadline()) {
+      // Auto-imposta stato "in_progress"
+      setSetting('tournament_status', 'in_progress').catch(() => {})
+      if (participant.has_submitted) {
+        navigate('/mia-schedina')
+      } else {
+        toast.error('Il tempo per compilare la schedina è scaduto!')
+        navigate('/')
+      }
+      return
+    }
+
+    // Se ha già inviato, carica i dati esistenti per modifica
+    if (participant.has_submitted) {
+      setIsEditing(true)
+    }
+
     load()
   }, []) // eslint-disable-line
 
@@ -43,6 +67,23 @@ export default function Schedina() {
       const [t, m] = await Promise.all([getAllTeams(), getGroupMatches()])
       setTeams(t)
       setMatches(m)
+
+      // Se ha già inviato, carica pronostici esistenti
+      if (participant.has_submitted) {
+        const [existingPreds, existingAdv] = await Promise.all([
+          getParticipantMatchPredictions(participant.id),
+          getParticipantAdvPrediction(participant.id),
+        ])
+        if (existingPreds.length > 0) {
+          setPredictions(Object.fromEntries(existingPreds.map(p => [p.match_id, p.predicted_outcome])))
+        }
+        if (existingAdv) {
+          setSemis(existingAdv.semifinalist_ids ?? [])
+          setFinalists(existingAdv.finalist_ids ?? [])
+          setWinner(existingAdv.winner_id ?? null)
+          setTopScorer(existingAdv.top_scorer ?? '')
+        }
+      }
     } catch {
       toast.error('Errore nel caricamento dei dati')
     }
@@ -82,7 +123,6 @@ export default function Schedina() {
   const toggleSemi = (id) => {
     setSemis(prev => {
       const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-      // rimuovi finaliste non più nei semis
       setFinalists(f => f.filter(x => next.includes(x)))
       setWinner(w => next.includes(w) ? w : null)
       return next
@@ -124,6 +164,13 @@ export default function Schedina() {
   // ── Submit ────────────────────────────────────────────────
 
   const handleSubmit = async () => {
+    // Controlla deadline al momento dell'invio
+    if (!isBeforeDeadline()) {
+      toast.error('Il tempo per compilare la schedina è scaduto!')
+      navigate('/mia-schedina')
+      return
+    }
+
     const err = validate()
     if (err) { toast.error(err); return }
 
@@ -131,9 +178,11 @@ export default function Schedina() {
     try {
       await submitMatchPredictions(participant.id, predictions)
       await submitAdvPrediction(participant.id, semis, finalists, winner, topScorer.trim())
-      await markParticipantSubmitted(participant.id)
-      updateParticipant({ has_submitted: true })
-      toast.success('Schedina inviata! Buona fortuna 🎉')
+      if (!participant.has_submitted) {
+        await markParticipantSubmitted(participant.id)
+        updateParticipant({ has_submitted: true })
+      }
+      toast.success(isEditing ? 'Schedina aggiornata! Buona fortuna!' : 'Schedina inviata! Buona fortuna!')
       navigate('/mia-schedina')
     } catch (e) {
       console.error(e)
@@ -154,10 +203,40 @@ export default function Schedina() {
     <div className="space-y-6 animate-fade-in pb-20">
       {/* ── Intestazione ── */}
       <div>
-        <h1 className="text-2xl font-black">La tua schedina</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-black">
+            {isEditing ? 'Modifica schedina' : 'La tua schedina'}
+          </h1>
+          {isEditing && <Edit3 size={18} className="text-yellow-400" />}
+        </div>
         <p className="text-tm-muted text-sm mt-1">
           {participant?.first_name} {participant?.last_name} — tutti i campi sono obbligatori
         </p>
+      </div>
+
+      {/* ── Countdown deadline ── */}
+      <div className="card bg-tm-card/80">
+        <div className="flex items-center gap-2 mb-2 justify-center">
+          <Clock size={14} className="text-yellow-400" />
+          <span className="text-xs font-semibold text-yellow-400 uppercase tracking-wide">
+            Tempo rimanente per compilare
+          </span>
+        </div>
+        <Countdown
+          target={DEADLINE_UTC}
+          compact
+          expiredText="Tempo scaduto!"
+        />
+      </div>
+
+      {/* ── Countdown Mondiale ── */}
+      <div className="card-sm text-center">
+        <Countdown
+          target={KICKOFF_UTC}
+          compact
+          label="Inizio Mondiali"
+          expiredText="Il Mondiale 2026 è iniziato!"
+        />
       </div>
 
       {/* ── Progress bar ── */}
@@ -469,11 +548,13 @@ export default function Schedina() {
         >
           {submitting
             ? <><span className="h-5 w-5 animate-spin rounded-full border-2 border-tm-bg/50 border-t-tm-bg" /> Invio in corso…</>
-            : <><Send size={18} /> Invia la mia schedina</>
+            : <><Send size={18} /> {isEditing ? 'Aggiorna la mia schedina' : 'Invia la mia schedina'}</>
           }
         </button>
         <p className="text-center text-xs text-tm-muted mt-3">
-          Dopo l'invio la schedina è bloccata e non modificabile
+          {isEditing
+            ? 'Puoi modificare la schedina fino al 11/06/2026 ore 20:00'
+            : 'Dopo l\'invio puoi ancora modificare la schedina fino alla deadline'}
         </p>
       </div>
 
