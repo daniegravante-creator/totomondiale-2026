@@ -2,12 +2,13 @@
 // Piano gratuito: 100 chiamate/giorno
 // League ID 1 = FIFA World Cup | Season 2026
 
-const API_BASE  = 'https://v3.football.api-sports.io'
 const WC_LEAGUE = 1
 const WC_SEASON = 2026
 
 async function apiFetch(path, apiKey) {
-  const res = await fetch(`${API_BASE}${path}`, {
+  // Usa il proxy Vercel serverless per evitare CORS
+  const proxyUrl = `/api/football?path=${encodeURIComponent(path)}`
+  const res = await fetch(proxyUrl, {
     headers: {
       'x-apisports-key': apiKey,
     },
