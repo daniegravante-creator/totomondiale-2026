@@ -11,8 +11,8 @@ export default function Classifica() {
   const [teams,     setTeams]     = useState([])
   const [prizes,    setPrizes]    = useState(null)
   const [expanded,  setExpanded]  = useState({})
-  const [showPrizes,setShowPrizes]= useState(false)
   const [lastUpdate,setLastUpdate]= useState(null)
+  const [hasResults,setHasResults]= useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -26,6 +26,10 @@ export default function Classifica() {
       ])
 
       setTeams(allTeams)
+
+      // Controlla se ci sono partite con risultato (= punti assegnabili)
+      const matchesWithResult = matches.filter(m => m.status === 'completed' || m.home_score !== null)
+      setHasResults(matchesWithResult.length > 0)
 
       const submitted = participants.filter(p => p.has_submitted)
       if (submitted.length === 0) {
@@ -86,6 +90,11 @@ export default function Classifica() {
           <h1 className="text-2xl font-black">Classifica</h1>
           <p className="text-tm-muted text-sm">
             {totalParticipants} partecipant{totalParticipants === 1 ? 'e' : 'i'}
+            {lastUpdate && (
+              <span className="ml-2">
+                — agg. {lastUpdate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
           </p>
         </div>
         <button
@@ -96,10 +105,15 @@ export default function Classifica() {
         </button>
       </div>
 
-      {lastUpdate && (
-        <p className="text-xs text-tm-muted">
-          Aggiornata: {lastUpdate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
-        </p>
+      {/* ── Montepremi (fisso in alto) ── */}
+      {prizes && (
+        <div className="card flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Coins size={18} className="text-tm-accent" />
+            <span className="font-bold">Montepremi</span>
+          </div>
+          <span className="text-tm-accent font-black text-lg">{formatCurrency(prizes.net)}</span>
+        </div>
       )}
 
       {/* ── Legenda punteggi ── */}
@@ -191,96 +205,62 @@ export default function Classifica() {
         </div>
       )}
 
-      {/* ── Montepremi ── */}
-      {prizes && (
+      {/* ── Premiati (solo se ci sono risultati) ── */}
+      {prizes && hasResults && (
         <>
           <div className="accent-divider" />
-          <div className="card">
-            <button
-              className="w-full flex items-center justify-between"
-              onClick={() => setShowPrizes(p => !p)}
-            >
-              <div className="flex items-center gap-2">
-                <Coins size={18} className="text-tm-accent" />
-                <span className="font-bold">Montepremi</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-tm-accent font-black">{formatCurrency(prizes.net)}</span>
-                {showPrizes ? <ChevronUp size={16} className="text-tm-muted" /> : <ChevronDown size={16} className="text-tm-muted" />}
-              </div>
-            </button>
+          <div className="card space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Trophy size={18} className="text-tm-accent" />
+              <span className="font-bold">Premiati</span>
+            </div>
+            <div className="space-y-2">
+              {prizes.firstPlacers.length > 0 && (
+                <PrizeRow
+                  emoji="🥇"
+                  label={prizes.firstPlacers.length > 1
+                    ? `1° ex aequo (${prizes.firstPlacers.length})`
+                    : '1° Classificato'}
+                  amount={prizes.eachFirst}
+                  names={prizes.firstPlacers.map(p => `${p.first_name} ${p.last_name}`)}
+                />
+              )}
+              {prizes.secondPlacers.length > 0 && prizes.eachSecond > 0 && (
+                <PrizeRow
+                  emoji="🥈"
+                  label={prizes.secondPlacers.length > 1
+                    ? `2° ex aequo (${prizes.secondPlacers.length})`
+                    : '2° Classificato'}
+                  amount={prizes.eachSecond}
+                  names={prizes.secondPlacers.map(p => `${p.first_name} ${p.last_name}`)}
+                />
+              )}
+              {prizes.thirdPlacers.length > 0 && prizes.eachThird > 0 && (
+                <PrizeRow
+                  emoji="🥉"
+                  label="3° Classificato"
+                  amount={prizes.eachThird}
+                  names={prizes.thirdPlacers.map(p => `${p.first_name} ${p.last_name}`)}
+                />
+              )}
+              {prizes.lastPlacers.length === 1 && prizes.lastPrize > 0 && (
+                <PrizeRow
+                  emoji="🎖"
+                  label="Ultimo Classificato"
+                  amount={prizes.lastPrize}
+                  names={prizes.lastPlacers.map(p => `${p.first_name} ${p.last_name}`)}
+                  muted
+                />
+              )}
+            </div>
 
-            {showPrizes && (
-              <div className="mt-4 space-y-3 animate-fade-in">
-                {/* Ripartizione */}
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between text-tm-muted">
-                    <span>{prizes.N} partecipanti × €25</span>
-                    <span className="font-mono text-white">{formatCurrency(prizes.total)}</span>
-                  </div>
-                  <div className="flex justify-between text-tm-muted">
-                    <span>Gestori (15%)</span>
-                    <span className="font-mono text-red-400">- {formatCurrency(prizes.adminFee)}</span>
-                  </div>
-                  <div className="h-px bg-tm-border" />
-                  <div className="flex justify-between font-semibold">
-                    <span>Montepremi netto</span>
-                    <span className="font-mono text-tm-accent">{formatCurrency(prizes.net)}</span>
-                  </div>
-                </div>
-
-                <div className="accent-divider my-0" />
-
-                {/* Premi per posizione */}
-                <div className="space-y-2">
-                  {prizes.firstPlacers.length > 0 && (
-                    <PrizeRow
-                      emoji="🥇"
-                      label={prizes.firstPlacers.length > 1
-                        ? `1° ex aequo (${prizes.firstPlacers.length})`
-                        : '1° Classificato'}
-                      amount={prizes.eachFirst}
-                      names={prizes.firstPlacers.map(p => `${p.first_name} ${p.last_name}`)}
-                    />
-                  )}
-                  {prizes.secondPlacers.length > 0 && prizes.eachSecond > 0 && (
-                    <PrizeRow
-                      emoji="🥈"
-                      label={prizes.secondPlacers.length > 1
-                        ? `2° ex aequo (${prizes.secondPlacers.length})`
-                        : '2° Classificato'}
-                      amount={prizes.eachSecond}
-                      names={prizes.secondPlacers.map(p => `${p.first_name} ${p.last_name}`)}
-                    />
-                  )}
-                  {prizes.thirdPlacers.length > 0 && prizes.eachThird > 0 && (
-                    <PrizeRow
-                      emoji="🥉"
-                      label="3° Classificato"
-                      amount={prizes.eachThird}
-                      names={prizes.thirdPlacers.map(p => `${p.first_name} ${p.last_name}`)}
-                    />
-                  )}
-                  {prizes.lastPlacers.length === 1 && prizes.lastPrize > 0 && (
-                    <PrizeRow
-                      emoji="🎖"
-                      label="Ultimo Classificato"
-                      amount={prizes.lastPrize}
-                      names={prizes.lastPlacers.map(p => `${p.first_name} ${p.last_name}`)}
-                      muted
-                    />
-                  )}
-                </div>
-
-                {prizes.note !== 'normal' && (
-                  <div className="flex items-start gap-2 bg-yellow-900/20 border border-yellow-700/30 rounded-xl p-3 text-xs text-yellow-400">
-                    <Info size={14} className="shrink-0 mt-0.5" />
-                    <span>
-                      {prizes.note === 'ex_aequo_first' && 'Ex aequo al 1° posto: l\'intero montepremi viene diviso equamente tra i primi classificati.'}
-                      {prizes.note === 'ex_aequo_second' && 'Ex aequo al 2° posto: il montepremi di 2° e 3° viene accorpato e diviso equamente.'}
-                    </span>
-                  </div>
-                )}
+            {prizes.note !== 'normal' && (
+              <div className="flex items-start gap-2 bg-yellow-900/20 border border-yellow-700/30 rounded-xl p-3 text-xs text-yellow-400">
+                <Info size={14} className="shrink-0 mt-0.5" />
+                <span>
+                  {prizes.note === 'ex_aequo_first' && 'Ex aequo al 1° posto: l\'intero montepremi viene diviso equamente tra i primi classificati.'}
+                  {prizes.note === 'ex_aequo_second' && 'Ex aequo al 2° posto: il montepremi di 2° e 3° viene accorpato e diviso equamente.'}
+                </span>
               </div>
             )}
           </div>
