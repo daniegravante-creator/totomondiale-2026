@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Trophy, ArrowRight, Lock } from 'lucide-react'
+import { ArrowRight, Lock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { getParticipantByCode } from '../lib/supabase'
 import { checkAdminPassword } from '../lib/utils'
@@ -59,9 +59,11 @@ export default function Login() {
     <div className="min-h-[70dvh] flex flex-col items-center justify-center animate-fade-in">
       {/* Hero */}
       <div className="text-center mb-10">
-        <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-tm-accent/10 border border-tm-accent/30 mb-6">
-          <Trophy size={36} className="text-tm-accent" />
-        </div>
+        <img
+          src="/coppa.png"
+          alt="Coppa del Mondo FIFA"
+          className="mx-auto h-36 sm:h-44 w-auto mb-6 drop-shadow-[0_0_20px_rgba(255,215,0,0.35)] animate-fade-in"
+        />
         <h1 className="text-4xl sm:text-5xl font-black tracking-tight mb-2">
           Toto<span className="text-tm-accent">Mondiale</span>
         </h1>

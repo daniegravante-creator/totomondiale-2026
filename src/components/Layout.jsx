@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Trophy, BarChart2, LogOut, Menu, X, Shield } from 'lucide-react'
+import { BarChart2, LogOut, Menu, X, Shield } from 'lucide-react'
 import { useParticipant } from '../context/ParticipantContext'
 
 export default function Layout({ children }) {
@@ -29,7 +29,7 @@ export default function Layout({ children }) {
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
-            <Trophy size={20} className="text-tm-accent group-hover:scale-110 transition-transform" />
+            <img src="/coppa.png" alt="Coppa" className="h-8 w-auto group-hover:scale-110 transition-transform drop-shadow-[0_0_6px_rgba(0,255,102,0.3)]" />
             <span className="font-black text-base tracking-tight">
               Toto<span className="text-tm-accent">Mondiale</span>
               <span className="text-tm-muted-light text-sm font-medium ml-1">2026</span>
