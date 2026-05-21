@@ -841,21 +841,44 @@ function TabSettings({ settings, participants, matches, teams, onRefresh }) {
       }
 
       // ══════════════════════════════════════
-      // SEZIONE 2: PRONOSTICI AVANZAMENTO
+      // PRONOSTICI AVANZAMENTO (stessa matrice, righe sotto le partite)
       // ══════════════════════════════════════
-      csv += '\n\nPRONOSTICI AVANZAMENTO\n'
-      csv += 'Partecipante;Semifinaliste;Finaliste;Vincitore;Capocannoniere\n'
+      csv += '\n' // riga vuota di separazione
+
+      // Mappa avanzamento per partecipante
+      const advByPart = Object.fromEntries(advPreds.map(a => [a.participant_id, a]))
+
+      // Riga Semifinaliste
+      csv += ';;SEMIFINALISTE;;'
       for (const p of submitted) {
-        const adv = advPreds.find(a => a.participant_id === p.id)
-        if (!adv) {
-          csv += `${p.first_name} ${p.last_name};;;;;\n`
-          continue
-        }
-        const semis = (adv.semifinalist_ids ?? []).map(id => teamMap[id] ?? '?').join(', ')
-        const fins  = (adv.finalist_ids ?? []).map(id => teamMap[id] ?? '?').join(', ')
-        const win   = teamMap[adv.winner_id] ?? ''
-        csv += `${p.first_name} ${p.last_name};${semis};${fins};${win};${adv.top_scorer ?? ''}\n`
+        const adv = advByPart[p.id]
+        csv += `;${(adv?.semifinalist_ids ?? []).map(id => teamMap[id] ?? '?').join(', ')}`
       }
+      csv += '\n'
+
+      // Riga Finaliste
+      csv += ';;FINALISTE;;'
+      for (const p of submitted) {
+        const adv = advByPart[p.id]
+        csv += `;${(adv?.finalist_ids ?? []).map(id => teamMap[id] ?? '?').join(', ')}`
+      }
+      csv += '\n'
+
+      // Riga Vincitore
+      csv += ';;VINCITORE;;'
+      for (const p of submitted) {
+        const adv = advByPart[p.id]
+        csv += `;${adv?.winner_id ? (teamMap[adv.winner_id] ?? '?') : ''}`
+      }
+      csv += '\n'
+
+      // Riga Capocannoniere
+      csv += ';;CAPOCANNONIERE;;'
+      for (const p of submitted) {
+        const adv = advByPart[p.id]
+        csv += `;${adv?.top_scorer ?? ''}`
+      }
+      csv += '\n'
 
       // ══════════════════════════════════════
       // SEZIONE 3: RISULTATI PARTITE
