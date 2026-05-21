@@ -191,7 +191,7 @@ export default function Classifica() {
                         <div className="h-1 flex-1 bg-tm-border rounded-full overflow-hidden">
                           <div
                             className="h-full bg-tm-accent/70 rounded-full"
-                            style={{ width: `${Math.min(100, (p.score.total / 65) * 100)}%` }}
+                            style={{ width: `${Math.min(100, (p.score.total / 89) * 100)}%` }}
                           />
                         </div>
                         <span className="text-xs text-tm-muted font-mono">{p.score.total} pt</span>

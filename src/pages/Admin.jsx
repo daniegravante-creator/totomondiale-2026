@@ -20,6 +20,7 @@ import { generateParticipantCode, formatCurrency, formatDate } from '../lib/util
 import { syncResults } from '../lib/apiFootball'
 import { DEFAULT_PRIZE_CONFIG, calculatePrizes, rankParticipants, calculateScore } from '../lib/scoring'
 import { getMatchOutcome } from '../lib/utils'
+import { isBeforeDeadline, DEADLINE_UTC } from '../components/Countdown'
 
 const TABS = [
   { id: 'codici',     label: 'Codici',      icon: <UserPlus size={15} /> },
@@ -326,18 +327,29 @@ function TabPartecipanti({ participants, onRefresh }) {
         </div>
       )}
 
-      {pending.length > 0 && (
-        <div className="card">
-          <h3 className="font-bold text-sm mb-3 text-yellow-400 flex items-center gap-2">
-            <AlertTriangle size={14} /> In attesa di schedina ({pending.length})
-          </h3>
-          <div className="space-y-1">
-            {pending.map(p => (
-              <ParticipantRow key={p.id} p={p} onDelete={handleDelete} />
-            ))}
+      {pending.length > 0 && (() => {
+        const deadlinePassed = !isBeforeDeadline()
+        return (
+          <div className={`card ${deadlinePassed ? 'border-red-700/50' : ''}`}>
+            <h3 className={`font-bold text-sm mb-1 flex items-center gap-2 ${deadlinePassed ? 'text-red-400' : 'text-yellow-400'}`}>
+              <AlertTriangle size={14} />
+              {deadlinePassed
+                ? `Esclusi — schedina non inviata (${pending.length})`
+                : `In attesa di schedina (${pending.length})`}
+            </h3>
+            {deadlinePassed && (
+              <p className="text-xs text-red-400/70 mb-3">
+                Deadline scaduta il {DEADLINE_UTC.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Rome' })} alle {DEADLINE_UTC.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}. Questi partecipanti non possono più inviare la schedina.
+              </p>
+            )}
+            <div className="space-y-1">
+              {pending.map(p => (
+                <ParticipantRow key={p.id} p={p} onDelete={handleDelete} excluded={deadlinePassed} />
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {(submitted.length > 0 || !query) && (
         <div className="card">
@@ -354,15 +366,19 @@ function TabPartecipanti({ participants, onRefresh }) {
   )
 }
 
-function ParticipantRow({ p, onDelete }) {
+function ParticipantRow({ p, onDelete, excluded }) {
   return (
-    <div className="flex items-center gap-2 py-2 border-b border-tm-border last:border-0">
+    <div className={`flex items-center gap-2 py-2 border-b border-tm-border last:border-0 ${excluded ? 'opacity-60' : ''}`}>
       <div className="flex-1 min-w-0">
         <div className="text-sm font-medium">{p.first_name} {p.last_name}</div>
         <div className="font-mono text-xs text-tm-muted">{p.code}</div>
       </div>
-      <span className={`text-xs shrink-0 ${p.has_submitted ? 'text-tm-accent' : 'text-yellow-400'}`}>
-        {p.has_submitted ? '✓ Inviata' : '⏳ Pending'}
+      <span className={`text-xs shrink-0 ${
+        p.has_submitted ? 'text-tm-accent'
+        : excluded ? 'text-red-400'
+        : 'text-yellow-400'
+      }`}>
+        {p.has_submitted ? '✓ Inviata' : excluded ? '✕ Escluso' : '⏳ Pending'}
       </span>
       <button onClick={() => onDelete(p)} className="p-1 rounded hover:bg-red-900/30 text-tm-muted hover:text-red-400 transition-colors shrink-0">
         <Trash2 size={13} />
