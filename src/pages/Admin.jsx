@@ -18,7 +18,8 @@ import {
 } from '../lib/supabase'
 import { generateParticipantCode, formatCurrency, formatDate } from '../lib/utils'
 import { syncResults } from '../lib/apiFootball'
-import { DEFAULT_PRIZE_CONFIG } from '../lib/scoring'
+import { DEFAULT_PRIZE_CONFIG, calculatePrizes, rankParticipants, calculateScore } from '../lib/scoring'
+import { getMatchOutcome } from '../lib/utils'
 
 const TABS = [
   { id: 'codici',     label: 'Codici',      icon: <UserPlus size={15} /> },
@@ -791,7 +792,7 @@ function TabSettings({ settings, participants, matches, teams, onRefresh }) {
     setSaving(false)
   }
 
-  // ── Backup/Export ──
+  // ── Backup/Export (formato matrice) ──
   const handleExport = async () => {
     setExporting(true)
     try {
@@ -802,56 +803,92 @@ function TabSettings({ settings, participants, matches, teams, onRefresh }) {
       ])
 
       const teamMap = Object.fromEntries(teams.map(t => [t.id, t.name]))
+      const teamFlagMap = Object.fromEntries(teams.map(t => [t.id, t.flag ?? '']))
+      const submitted = participants.filter(p => p.has_submitted)
+      const sortedMatches = [...matches].sort((a,b) => a.match_number - b.match_number)
 
-      // Foglio 1: Partecipanti
-      let csv = '﻿' // BOM per Excel
-      csv += 'PARTECIPANTI\n'
-      csv += 'Nome;Cognome;Codice;Schedina Inviata;Data Iscrizione\n'
-      for (const p of participants) {
-        csv += `${p.first_name};${p.last_name};${p.code};${p.has_submitted ? 'Si' : 'No'};${p.created_at?.slice(0,10) ?? ''}\n`
-      }
-
-      // Foglio 2: Pronostici gironi
-      csv += '\n\nPRONOSTICI GIRONI\n'
-      csv += 'Partecipante;Partita;Casa;Ospite;Pronostico\n'
+      // Mappa pronostici: { participantId: { matchId: '1'/'X'/'2' } }
+      const predsByPart = {}
       for (const mp of matchPreds) {
-        const match = matches.find(m => m.id === mp.match_id)
-        const part  = participants.find(p => p.id === mp.participant_id)
-        if (!match || !part) continue
-        const ht = match.home_team?.name ?? teamMap[match.home_team_id] ?? '?'
-        const at = match.away_team?.name ?? teamMap[match.away_team_id] ?? '?'
-        csv += `${part.first_name} ${part.last_name};#${match.match_number};${ht};${at};${mp.predicted_outcome}\n`
+        if (!predsByPart[mp.participant_id]) predsByPart[mp.participant_id] = {}
+        predsByPart[mp.participant_id][mp.match_id] = mp.predicted_outcome
       }
 
-      // Foglio 3: Pronostici avanzamento
-      csv += '\n\nPRONOSTICI AVANZAMENTO\n'
-      csv += 'Partecipante;Semifinaliste;Finaliste;Vincitore;Capocannoniere\n'
-      for (const adv of advPreds) {
-        const part = participants.find(p => p.id === adv.participant_id)
-        if (!part) continue
-        const semis = (adv.semifinalist_ids ?? []).map(id => teamMap[id] ?? '?').join(', ')
-        const fins  = (adv.finalist_ids ?? []).map(id => teamMap[id] ?? '?').join(', ')
-        const win   = teamMap[adv.winner_id] ?? '—'
-        csv += `${part.first_name} ${part.last_name};${semis};${fins};${win};${adv.top_scorer ?? ''}\n`
-      }
+      let csv = '﻿' // BOM per Excel
 
-      // Foglio 4: Risultati partite
-      csv += '\n\nRISULTATI PARTITE\n'
-      csv += 'N;Girone;Casa;Ospite;Risultato;Stato\n'
-      for (const m of [...matches].sort((a,b) => a.match_number - b.match_number)) {
+      // ══════════════════════════════════════
+      // SEZIONE 1: MATRICE PRONOSTICI GIRONI
+      // ══════════════════════════════════════
+      csv += 'MATRICE PRONOSTICI GIRONI\n'
+      // Header: N; Girone; Casa; Ospite; Risultato; [Nome partecipanti...]
+      csv += 'N;Girone;Casa;Ospite;Risultato'
+      for (const p of submitted) {
+        csv += `;${p.first_name} ${p.last_name}`
+      }
+      csv += '\n'
+
+      // Una riga per partita
+      for (const m of sortedMatches) {
         const ht = m.home_team?.name ?? teamMap[m.home_team_id] ?? '?'
         const at = m.away_team?.name ?? teamMap[m.away_team_id] ?? '?'
-        const score = m.home_score !== null ? `${m.home_score}-${m.away_score}` : '—'
-        csv += `${m.match_number};${m.group_letter};${ht};${at};${score};${m.status}\n`
+        const score = m.home_score !== null ? `${m.home_score}-${m.away_score}` : ''
+        csv += `${m.match_number};${m.group_letter};${ht};${at};${score}`
+        for (const p of submitted) {
+          const pred = predsByPart[p.id]?.[m.id] ?? ''
+          csv += `;${pred}`
+        }
+        csv += '\n'
       }
 
-      // Foglio 5: Torneo
+      // ══════════════════════════════════════
+      // SEZIONE 2: PRONOSTICI AVANZAMENTO
+      // ══════════════════════════════════════
+      csv += '\n\nPRONOSTICI AVANZAMENTO\n'
+      csv += 'Partecipante;Semifinaliste;Finaliste;Vincitore;Capocannoniere\n'
+      for (const p of submitted) {
+        const adv = advPreds.find(a => a.participant_id === p.id)
+        if (!adv) {
+          csv += `${p.first_name} ${p.last_name};;;;;\n`
+          continue
+        }
+        const semis = (adv.semifinalist_ids ?? []).map(id => teamMap[id] ?? '?').join(', ')
+        const fins  = (adv.finalist_ids ?? []).map(id => teamMap[id] ?? '?').join(', ')
+        const win   = teamMap[adv.winner_id] ?? ''
+        csv += `${p.first_name} ${p.last_name};${semis};${fins};${win};${adv.top_scorer ?? ''}\n`
+      }
+
+      // ══════════════════════════════════════
+      // SEZIONE 3: RISULTATI PARTITE
+      // ══════════════════════════════════════
+      csv += '\n\nRISULTATI PARTITE\n'
+      csv += 'N;Girone;Casa;Ospite;Gol Casa;Gol Ospite;Esito (1X2);Stato\n'
+      for (const m of sortedMatches) {
+        const ht = m.home_team?.name ?? teamMap[m.home_team_id] ?? '?'
+        const at = m.away_team?.name ?? teamMap[m.away_team_id] ?? '?'
+        const outcome = m.home_score !== null ? getMatchOutcome(m.home_score, m.away_score) : ''
+        csv += `${m.match_number};${m.group_letter};${ht};${at};${m.home_score ?? ''};${m.away_score ?? ''};${outcome};${m.status}\n`
+      }
+
+      // ══════════════════════════════════════
+      // SEZIONE 4: RISULTATI TORNEO
+      // ══════════════════════════════════════
       csv += '\n\nRISULTATI TORNEO\n'
       if (tourResult) {
         csv += `Semifinaliste;${(tourResult.semifinalist_ids ?? []).map(id => teamMap[id] ?? '?').join(', ')}\n`
         csv += `Finaliste;${(tourResult.finalist_ids ?? []).map(id => teamMap[id] ?? '?').join(', ')}\n`
-        csv += `Vincitore;${teamMap[tourResult.winner_id] ?? '—'}\n`
-        csv += `Capocannoniere;${(tourResult.top_scorer_names ?? []).join(', ') || '—'}\n`
+        csv += `Vincitore;${teamMap[tourResult.winner_id] ?? ''}\n`
+        csv += `Capocannoniere;${(tourResult.top_scorer_names ?? []).join(', ') || ''}\n`
+      } else {
+        csv += 'Nessun risultato torneo inserito\n'
+      }
+
+      // ══════════════════════════════════════
+      // SEZIONE 5: DATI PARTECIPANTI
+      // ══════════════════════════════════════
+      csv += '\n\nDATI PARTECIPANTI\n'
+      csv += 'Nome;Cognome;Codice;Schedina Inviata;Data Iscrizione\n'
+      for (const p of participants) {
+        csv += `${p.first_name};${p.last_name};${p.code};${p.has_submitted ? 'Si' : 'No'};${p.created_at?.slice(0,10) ?? ''}\n`
       }
 
       // Download
@@ -967,6 +1004,16 @@ function TabSettings({ settings, participants, matches, teams, onRefresh }) {
         <p className="text-xs text-tm-muted">
           L'ultimo classificato riceve la quota d'iscrizione ({entryFee}€). Se più ultimi a pari, il premio decade e va al 1°.
         </p>
+
+        {/* ── Simulazione premi in tempo reale ── */}
+        <PrizeSimulation
+          entryFee={entryFee}
+          adminRate={adminRate}
+          firstPct={firstPct}
+          secondPct={secondPct}
+          thirdPct={thirdPct}
+          participantCount={participants.filter(p => p.has_submitted).length}
+        />
       </div>
 
       <button
@@ -1003,6 +1050,78 @@ function TabSettings({ settings, participants, matches, teams, onRefresh }) {
           L'API key è salvata nel database Supabase. Chiunque abbia accesso diretto al DB può visualizzarla. Per uso privato, è accettabile.
         </p>
       </div>
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════
+// Simulazione premi in tempo reale
+// ══════════════════════════════════════════════════════════
+function PrizeSimulation({ entryFee, adminRate, firstPct, secondPct, thirdPct, participantCount }) {
+  const fee  = parseFloat(entryFee) || 0
+  const rate = (parseFloat(adminRate) || 0) / 100
+  const f    = (parseFloat(firstPct)  || 0) / 100
+  const s    = (parseFloat(secondPct) || 0) / 100
+  const t    = (parseFloat(thirdPct)  || 0) / 100
+  const N    = participantCount
+
+  if (N === 0 || fee === 0) {
+    return (
+      <div className="rounded-xl border border-tm-border bg-tm-bg/50 p-3 text-center text-xs text-tm-muted">
+        Nessun partecipante con schedina inviata
+      </div>
+    )
+  }
+
+  const total    = N * fee
+  const adminFee = Math.round(total * rate * 100) / 100
+  const net      = total - adminFee
+  const pool     = net - fee  // riserva quota ultimo
+  const first    = Math.round(pool * f * 100) / 100
+  const second   = Math.round(pool * s * 100) / 100
+  const third    = Math.round(pool * t * 100) / 100
+  const last     = fee
+
+  const pctSum = Math.round((f + s + t) * 100)
+  const isValid = Math.abs(pctSum - 100) < 1
+
+  return (
+    <div className="rounded-xl border border-tm-accent/20 bg-tm-accent/5 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-tm-accent uppercase tracking-wide">Simulazione premi</span>
+        <span className="text-xs text-tm-muted">{N} partecipant{N === 1 ? 'e' : 'i'}</span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        <span className="text-tm-muted">Totale raccolto</span>
+        <span className="text-right font-mono text-white">{formatCurrency(total)}</span>
+
+        <span className="text-tm-muted">Quota gestori ({(rate * 100).toFixed(0)}%)</span>
+        <span className="text-right font-mono text-red-400">-{formatCurrency(adminFee)}</span>
+
+        <span className="text-tm-muted font-semibold">Montepremi netto</span>
+        <span className="text-right font-mono font-bold text-tm-accent">{formatCurrency(net)}</span>
+      </div>
+
+      <div className="h-px bg-tm-border/50" />
+
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        <span className="text-tm-muted flex items-center gap-1">🥇 1° posto ({(f*100).toFixed(0)}%)</span>
+        <span className="text-right font-mono text-white">{formatCurrency(first)}</span>
+
+        <span className="text-tm-muted flex items-center gap-1">🥈 2° posto ({(s*100).toFixed(0)}%)</span>
+        <span className="text-right font-mono text-white">{formatCurrency(second)}</span>
+
+        <span className="text-tm-muted flex items-center gap-1">🥉 3° posto ({(t*100).toFixed(0)}%)</span>
+        <span className="text-right font-mono text-white">{formatCurrency(third)}</span>
+
+        <span className="text-tm-muted flex items-center gap-1">🎖 Ultimo</span>
+        <span className="text-right font-mono text-tm-muted-light">{formatCurrency(last)}</span>
+      </div>
+
+      {!isValid && (
+        <p className="text-xs text-red-400 mt-1">Le percentuali devono sommare 100% (ora: {pctSum}%)</p>
+      )}
     </div>
   )
 }

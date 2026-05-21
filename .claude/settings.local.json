@@ -5,7 +5,8 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git branch *)",
-      "Bash(git remote *)"
+      "Bash(git remote *)",
+      "Bash(\"/Users/danielesmac/Library/Application Support/Logi/LogiPluginService/PluginHosts/node22/node/bin/node\" \"./node_modules/.bin/vite\" build --outDir dist)"
     ]
   }
 }

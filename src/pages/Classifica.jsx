@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Trophy, Coins, RefreshCw, ChevronDown, ChevronUp, Info } from 'lucide-react'
+import { Trophy, Coins, RefreshCw, ChevronDown, ChevronUp, Info, CheckCircle2, XCircle, Users, Star } from 'lucide-react'
 import LoadingSpinner from '../components/LoadingSpinner'
 import { getAllParticipants, getAllTeams, getAllMatches, getAllMatchPredictions, getAllAdvPredictions, getTournamentResults, getAllSettings } from '../lib/supabase'
 import { calculateScore, rankParticipants, calculatePrizes, DEFAULT_PRIZE_CONFIG } from '../lib/scoring'
-import { formatCurrency, getOrdinal } from '../lib/utils'
+import { formatCurrency, getOrdinal, getMatchOutcome } from '../lib/utils'
+
+const GROUPS = ['A','B','C','D','E','F','G','H','I','J','K','L']
 
 export default function Classifica() {
   const [loading,   setLoading]   = useState(true)
@@ -13,6 +15,11 @@ export default function Classifica() {
   const [expanded,  setExpanded]  = useState({})
   const [lastUpdate,setLastUpdate]= useState(null)
   const [hasResults,setHasResults]= useState(false)
+  // Dati per trasparenza pronostici
+  const [allMatchPreds, setAllMatchPreds] = useState([])
+  const [allAdvPreds,   setAllAdvPreds]   = useState([])
+  const [allMatches,    setAllMatches]    = useState([])
+  const [tournamentRes, setTournamentRes] = useState(null)
 
   const load = useCallback(async () => {
     try {
@@ -36,6 +43,10 @@ export default function Classifica() {
       }
 
       setTeams(allTeams)
+      setAllMatchPreds(matchPreds)
+      setAllAdvPreds(advPreds)
+      setAllMatches(matches)
+      setTournamentRes(tourResult)
 
       // Controlla se ci sono partite con risultato (= punti assegnabili)
       const matchesWithResult = matches.filter(m => m.status === 'completed' || m.home_score !== null)
@@ -194,19 +205,17 @@ export default function Classifica() {
                     </div>
                   </button>
 
-                  {/* Dettaglio punteggi */}
+                  {/* Dettaglio punteggi + pronostici */}
                   {isExp && (
-                    <div className="mt-3 pt-3 border-t border-tm-border grid grid-cols-3 gap-2 animate-fade-in">
-                      <ScoreDetail label="Gironi" value={p.score.groupStage} />
-                      <ScoreDetail label="Semifin." value={p.score.semifinalists} />
-                      <ScoreDetail label="Finaliste" value={p.score.finalists} />
-                      <ScoreDetail label="Vincitore" value={p.score.winner} max={5} accent />
-                      <ScoreDetail label="Capo." value={p.score.topScorer} max={4} accent />
-                      <div className="col-span-1 text-center py-2 rounded-lg bg-tm-accent/5 border border-tm-accent/20">
-                        <div className="text-xs text-tm-muted mb-0.5">Totale</div>
-                        <div className="font-black text-tm-accent">{p.score.total}</div>
-                      </div>
-                    </div>
+                    <ParticipantDetail
+                      participant={p}
+                      matchPreds={allMatchPreds.filter(mp => mp.participant_id === p.id)}
+                      advPred={allAdvPreds.find(ap => ap.participant_id === p.id) ?? null}
+                      matches={allMatches}
+                      teams={teams}
+                      tournamentRes={tournamentRes}
+                      teamById={teamById}
+                    />
                   )}
                 </div>
               </div>
@@ -276,6 +285,231 @@ export default function Classifica() {
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════
+// Dettaglio pronostici partecipante (trasparenza)
+// ══════════════════════════════════════════════════════════
+function ParticipantDetail({ participant, matchPreds, advPred, matches, teams, tournamentRes, teamById }) {
+  const [activeGroup, setActiveGroup] = useState(null)
+  const p = participant
+
+  // Mappa pronostici partita: match_id → predicted_outcome
+  const predMap = Object.fromEntries(matchPreds.map(mp => [mp.match_id, mp.predicted_outcome]))
+
+  // Partite con risultato per gruppo
+  const matchesWithResult = matches.filter(m => m.home_score !== null)
+  const groupsWithResults = [...new Set(matchesWithResult.map(m => m.group_letter))].sort()
+
+  // Tutte le partite per il girone attivo
+  const groupMatches = activeGroup
+    ? matches.filter(m => m.group_letter === activeGroup).sort((a, b) => a.match_number - b.match_number)
+    : []
+
+  const OUTCOME_COLORS = {
+    '1': 'text-blue-400',
+    'X': 'text-yellow-400',
+    '2': 'text-red-400',
+  }
+
+  return (
+    <div className="mt-3 pt-3 border-t border-tm-border animate-fade-in">
+      {/* Riepilogo punti per categoria */}
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <ScoreDetail label="Gironi" value={p.score.groupStage} />
+        <ScoreDetail label="Semifin." value={p.score.semifinalists} />
+        <ScoreDetail label="Finaliste" value={p.score.finalists} />
+        <ScoreDetail label="Vincitore" value={p.score.winner} max={5} accent />
+        <ScoreDetail label="Capo." value={p.score.topScorer} max={4} accent />
+        <div className="col-span-1 text-center py-2 rounded-lg bg-tm-accent/5 border border-tm-accent/20">
+          <div className="text-xs text-tm-muted mb-0.5">Totale</div>
+          <div className="font-black text-tm-accent">{p.score.total}</div>
+        </div>
+      </div>
+
+      {/* ── Pronostici avanzamento ── */}
+      {advPred && (
+        <div className="space-y-3 mb-4">
+          {/* Vincitore */}
+          {advPred.winner_id && (() => {
+            const t = teamById(advPred.winner_id)
+            const isCorrect = tournamentRes?.winner_id === advPred.winner_id
+            const hasResult = !!tournamentRes?.winner_id
+            return (
+              <div className="flex items-center gap-2">
+                <Trophy size={13} className="text-tm-accent shrink-0" />
+                <span className="text-xs text-tm-muted shrink-0">Vincitore:</span>
+                <span className="text-sm font-semibold">{t?.flag} {t?.name}</span>
+                {hasResult && (
+                  isCorrect
+                    ? <CheckCircle2 size={13} className="text-green-400 shrink-0 ml-auto" />
+                    : <XCircle size={13} className="text-red-400/60 shrink-0 ml-auto" />
+                )}
+              </div>
+            )
+          })()}
+
+          {/* Capocannoniere */}
+          {advPred.top_scorer && (
+            <div className="flex items-center gap-2">
+              <Star size={13} className="text-tm-accent shrink-0" />
+              <span className="text-xs text-tm-muted shrink-0">Capo.:</span>
+              <span className="text-sm font-semibold">{advPred.top_scorer}</span>
+              {tournamentRes?.top_scorer_names?.length > 0 && (
+                p.score.topScorer > 0
+                  ? <CheckCircle2 size={13} className="text-green-400 shrink-0 ml-auto" />
+                  : <XCircle size={13} className="text-red-400/60 shrink-0 ml-auto" />
+              )}
+            </div>
+          )}
+
+          {/* Semifinaliste */}
+          {advPred.semifinalist_ids?.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Users size={13} className="text-tm-muted shrink-0" />
+                <span className="text-xs text-tm-muted">Semifinaliste</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1">
+                {advPred.semifinalist_ids.map(id => {
+                  const t = teamById(id)
+                  const hasSemiResult = tournamentRes?.semifinalist_ids?.length > 0
+                  const isCorrect = hasSemiResult && tournamentRes.semifinalist_ids.includes(id)
+                  return (
+                    <div key={id} className={`flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-lg border
+                      ${hasSemiResult
+                        ? isCorrect ? 'border-green-700/40 bg-green-900/10 text-green-300' : 'border-red-900/30 bg-red-900/5 text-tm-muted'
+                        : 'border-tm-border bg-tm-bg text-white'}`}>
+                      <span>{t?.flag}</span>
+                      <span className="truncate">{t?.name}</span>
+                      {hasSemiResult && (
+                        isCorrect
+                          ? <CheckCircle2 size={11} className="text-green-400 shrink-0 ml-auto" />
+                          : <XCircle size={11} className="text-red-400/50 shrink-0 ml-auto" />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Finaliste */}
+          {advPred.finalist_ids?.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Trophy size={13} className="text-yellow-400 shrink-0" />
+                <span className="text-xs text-tm-muted">Finaliste</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1">
+                {advPred.finalist_ids.map(id => {
+                  const t = teamById(id)
+                  const hasFinResult = tournamentRes?.finalist_ids?.length > 0
+                  const isCorrect = hasFinResult && tournamentRes.finalist_ids.includes(id)
+                  return (
+                    <div key={id} className={`flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-lg border
+                      ${hasFinResult
+                        ? isCorrect ? 'border-green-700/40 bg-green-900/10 text-green-300' : 'border-red-900/30 bg-red-900/5 text-tm-muted'
+                        : 'border-tm-border bg-tm-bg text-white'}`}>
+                      <span>{t?.flag}</span>
+                      <span className="truncate">{t?.name}</span>
+                      {hasFinResult && (
+                        isCorrect
+                          ? <CheckCircle2 size={11} className="text-green-400 shrink-0 ml-auto" />
+                          : <XCircle size={11} className="text-red-400/50 shrink-0 ml-auto" />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Pronostici gironi (tab per gruppo) ── */}
+      <div>
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xs text-tm-muted font-semibold uppercase tracking-wide">Pronostici gironi</span>
+          <span className="text-xs text-tm-muted">({p.score.groupStage}/{matchesWithResult.length} corretti)</span>
+        </div>
+        <div className="flex gap-1 overflow-x-auto pb-1 mb-2 hide-scrollbar">
+          {GROUPS.map(g => {
+            // Conta pronostici corretti in questo girone
+            const gMatches = matches.filter(m => m.group_letter === g)
+            const gCorrect = gMatches.filter(m => {
+              if (m.home_score === null) return false
+              const actual = getMatchOutcome(m.home_score, m.away_score)
+              return actual && predMap[m.id] === actual
+            }).length
+            const gTotal = gMatches.filter(m => m.home_score !== null).length
+            const isActive = activeGroup === g
+
+            return (
+              <button
+                key={g}
+                onClick={() => setActiveGroup(isActive ? null : g)}
+                className={`shrink-0 min-w-[2rem] h-7 px-1.5 rounded-md text-xs font-bold transition-colors relative
+                  ${isActive
+                    ? 'bg-tm-accent text-tm-bg'
+                    : 'bg-tm-bg border border-tm-border text-tm-muted-light hover:border-tm-border-bright'}`}
+              >
+                {g}
+                {gTotal > 0 && (
+                  <span className={`block text-[9px] font-normal leading-none ${isActive ? 'text-tm-bg/70' : 'text-tm-muted'}`}>
+                    {gCorrect}/{gTotal}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Match list for active group */}
+        {activeGroup && (
+          <div className="space-y-1 animate-fade-in">
+            {groupMatches.map(m => {
+              const pred = predMap[m.id]
+              const ht = m.home_team
+              const at = m.away_team
+              const hasResult = m.home_score !== null
+              const actual = hasResult ? getMatchOutcome(m.home_score, m.away_score) : null
+              const isCorrect = actual && pred === actual
+
+              return (
+                <div key={m.id} className={`flex items-center gap-1.5 py-1.5 px-2 rounded-lg text-xs
+                  ${hasResult
+                    ? isCorrect ? 'bg-green-900/10 border border-green-800/30' : 'bg-red-900/5 border border-red-900/20'
+                    : 'border border-transparent'}`}>
+                  {/* Home team */}
+                  <span className="shrink-0">{ht?.flag}</span>
+                  <span className="truncate flex-1 min-w-0">{ht?.name}</span>
+
+                  {/* Prediction */}
+                  <span className={`font-bold px-1.5 py-0.5 rounded shrink-0 ${OUTCOME_COLORS[pred] ?? 'text-tm-muted'}`}>
+                    {pred ?? '—'}
+                  </span>
+
+                  {/* Result indicator */}
+                  {hasResult && (
+                    <span className="shrink-0 w-8 text-center">
+                      {isCorrect
+                        ? <CheckCircle2 size={12} className="text-green-400 inline" />
+                        : <span className="text-tm-muted font-mono">{actual}</span>}
+                    </span>
+                  )}
+
+                  {/* Away team */}
+                  <span className="truncate flex-1 min-w-0 text-right">{at?.name}</span>
+                  <span className="shrink-0">{at?.flag}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
