@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Trophy, Coins, RefreshCw, ChevronDown, ChevronUp, Info, CheckCircle2, XCircle, Users, Star } from 'lucide-react'
+import { Trophy, Coins, RefreshCw, ChevronDown, ChevronUp, Info, CheckCircle2, XCircle, Users, Star, User } from 'lucide-react'
 import LoadingSpinner from '../components/LoadingSpinner'
+import { useParticipant } from '../context/ParticipantContext'
 import { getAllParticipants, getAllTeams, getAllMatches, getAllMatchPredictions, getAllAdvPredictions, getTournamentResults, getAllSettings } from '../lib/supabase'
 import { calculateScore, rankParticipants, calculatePrizes, DEFAULT_PRIZE_CONFIG } from '../lib/scoring'
 import { formatCurrency, getOrdinal, getMatchOutcome } from '../lib/utils'
@@ -8,6 +9,7 @@ import { formatCurrency, getOrdinal, getMatchOutcome } from '../lib/utils'
 const GROUPS = ['A','B','C','D','E','F','G','H','I','J','K','L']
 
 export default function Classifica() {
+  const { participant } = useParticipant()
   const [loading,   setLoading]   = useState(true)
   const [ranked,    setRanked]    = useState([])
   const [teams,     setTeams]     = useState([])
@@ -139,6 +141,29 @@ export default function Classifica() {
         </div>
       )}
 
+      {/* ── La tua posizione (pinnata) ── */}
+      {(() => {
+        const me = participant ? ranked.find(r => r.id === participant.id) : null
+        if (!me) return null
+        return (
+          <div className="card border-tm-accent/50 bg-tm-accent/5">
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-sm font-black shrink-0 ${rankClass(me.rank, maxRank, totalParticipants)}`}>
+                {me.rank === 1 ? '🥇' : me.rank === 2 ? '🥈' : me.rank === 3 ? '🥉' : me.rank === maxRank && totalParticipants > 1 ? '🎖' : getOrdinal(me.rank)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs text-tm-accent font-semibold uppercase tracking-wide">La tua posizione</div>
+                <div className="font-bold text-sm">{me.first_name} {me.last_name}</div>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="text-lg font-black text-tm-accent">{me.score.total}</div>
+                <div className="text-xs text-tm-muted">{getOrdinal(me.rank)} su {totalParticipants}</div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* ── Legenda punteggi ── */}
       <div className="card-sm grid grid-cols-3 gap-2 text-center text-xs">
         <div className="py-1">
@@ -167,11 +192,14 @@ export default function Classifica() {
             const isExp   = expanded[p.id]
             const prevRank = i > 0 ? ranked[i-1].rank : null
             const isFirst  = p.rank !== prevRank
+            const isMe     = participant && p.id === participant.id
             return (
               <div key={p.id}>
                 {/* Separatore cambio posizione */}
                 {isFirst && i > 0 && <div className="h-px bg-tm-border/50 my-1" />}
-                <div className={`card transition-all duration-150 ${p.rank === maxRank ? 'border-red-900/40' : ''}`}>
+                <div className={`card transition-all duration-150
+                  ${isMe ? 'border-tm-accent/60 bg-tm-accent/5 ring-1 ring-tm-accent/20' : ''}
+                  ${!isMe && p.rank === maxRank ? 'border-red-900/40' : ''}`}>
                   <button
                     className="w-full flex items-center gap-3"
                     onClick={() => setExpanded(e => ({ ...e, [p.id]: !e[p.id] }))}
