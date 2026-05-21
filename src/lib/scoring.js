@@ -77,8 +77,12 @@ export function rankParticipants(scored) {
 }
 
 // ── Calcolo montepremi ────────────────────────────────────
-// Regole ex aequo:
-// • Più ultimi a pari punti → premio ultimo decade, aggiunto al premio del 1°
+// Regole:
+// • 1 solo partecipante → vince tutto il netto
+// • 2 partecipanti → 1° prende netto - quota_ultimo, ultimo prende quota
+// • 3+ partecipanti → distribuzione normale 1°/2°/3° + ultimo
+// Ex aequo:
+// • Più ultimi a pari punti → premio ultimo decade, aggiunto al 1°
 // • Più primi a pari punti → tutto (1°+2°+3°) diviso equamente tra i primi
 // • Singolo 1°, più secondi → 2°+3° accorpati e divisi tra i secondi
 
@@ -97,6 +101,32 @@ export function calculatePrizes(ranked, config = {}) {
   const firstPlacers  = ranked.filter(p => p.rank === 1)
   const lastPlacers   = ranked.filter(p => p.rank === maxRank)
 
+  const base = { N, total, adminFee, net, entryFee: cfg.entryFee }
+
+  // ── Caso speciale: 1 solo partecipante ──
+  if (N === 1) {
+    return {
+      ...base,
+      lastPlacers: [], lastPrize: 0,
+      firstPlacers, eachFirst: net,
+      secondPlacers: [], eachSecond: 0,
+      thirdPlacers: [],  eachThird: 0,
+      note: 'single_player',
+    }
+  }
+
+  // ── Caso speciale: 2 partecipanti (1° e ultimo, niente 2°/3°) ──
+  if (N === 2 && firstPlacers.length === 1) {
+    return {
+      ...base,
+      lastPlacers, lastPrize: cfg.entryFee,
+      firstPlacers, eachFirst: net - cfg.entryFee,
+      secondPlacers: [], eachSecond: 0,
+      thirdPlacers: [],  eachThird: 0,
+      note: 'two_players',
+    }
+  }
+
   // Premio ultimo classificato
   const multipleLast = lastPlacers.length > 1
   const lastPrize    = multipleLast ? 0 : cfg.entryFee
@@ -106,11 +136,11 @@ export function calculatePrizes(ranked, config = {}) {
   // Base distribuibile tra 1°/2°/3°
   const pool = net - cfg.entryFee  // riserviamo quota ultimo, poi gestiamo
 
-  // Caso: più primi a pari punti
+  // Caso: più primi a pari punti (tutti o quasi)
   if (firstPlacers.length > 1) {
     const totalForFirsts = pool + firstBonus
     return {
-      N, total, adminFee, net, entryFee: cfg.entryFee,
+      ...base,
       lastPlacers, lastPrize,
       firstPlacers, eachFirst: Math.round(totalForFirsts / firstPlacers.length * 100) / 100,
       secondPlacers: [], eachSecond: 0,
@@ -119,29 +149,30 @@ export function calculatePrizes(ranked, config = {}) {
     }
   }
 
-  const firstPrize = pool * cfg.firstPct + firstBonus
-
-  // Secondi classificati
+  // Secondi classificati (escluso 1° e ultimo)
   const second = ranked.filter(p => p.rank !== 1 && p.rank !== maxRank)
+
+  // Se non c'è un 2° distinto (es. solo 1° e ultimo), il 1° prende pool + bonus
   if (second.length === 0) {
     return {
-      N, total, adminFee, net, entryFee: cfg.entryFee,
+      ...base,
       lastPlacers, lastPrize,
-      firstPlacers, eachFirst: firstPrize,
+      firstPlacers, eachFirst: pool + firstBonus,
       secondPlacers: [], eachSecond: 0,
       thirdPlacers: [],  eachThird: 0,
-      note: 'not_enough_players',
+      note: 'no_middle_ranks',
     }
   }
 
+  const firstPrize = pool * cfg.firstPct + firstBonus
   const secondRank   = Math.min(...second.map(p => p.rank))
   const secondPlacers = ranked.filter(p => p.rank === secondRank)
 
-  // Caso: più secondi a pari punti
+  // Caso: più secondi a pari punti → accorpamento 2°+3°
   if (secondPlacers.length > 1) {
     const secondPool = pool * (cfg.secondPct + cfg.thirdPct)
     return {
-      N, total, adminFee, net, entryFee: cfg.entryFee,
+      ...base,
       lastPlacers, lastPrize,
       firstPlacers, eachFirst: firstPrize,
       secondPlacers, eachSecond: Math.round(secondPool / secondPlacers.length * 100) / 100,
@@ -153,17 +184,29 @@ export function calculatePrizes(ranked, config = {}) {
   const secondPrize = pool * cfg.secondPct
 
   // Terzi classificati
-  const thirdRank    = ranked.filter(p => p.rank > secondRank && p.rank !== maxRank)
-  const minThirdRank = thirdRank.length > 0 ? Math.min(...thirdRank.map(p => p.rank)) : null
+  const thirdCandidates = ranked.filter(p => p.rank > secondRank && p.rank !== maxRank)
+  const minThirdRank = thirdCandidates.length > 0 ? Math.min(...thirdCandidates.map(p => p.rank)) : null
   const thirdPlacers = minThirdRank ? ranked.filter(p => p.rank === minThirdRank) : []
-  const thirdPrize   = thirdPlacers.length > 0 ? Math.round(pool * cfg.thirdPct / thirdPlacers.length * 100) / 100 : 0
+  let thirdPrize = 0
+
+  if (thirdPlacers.length > 0) {
+    thirdPrize = Math.round(pool * cfg.thirdPct / thirdPlacers.length * 100) / 100
+  } else {
+    // Nessun 3° distinto → la quota 3° va al 1°
+    // (es. 3 giocatori: 1°, 2°, ultimo — non c'è un 3° separato)
+  }
+
+  // Calcola il residuo non assegnato (quota 3° se non c'è un 3°) e aggiungilo al 1°
+  const assignedFromPool = (pool * cfg.firstPct) + secondPrize + (thirdPrize * thirdPlacers.length)
+  const residue = pool - assignedFromPool
+  const adjustedFirst = pool * cfg.firstPct + firstBonus + (thirdPlacers.length === 0 ? pool * cfg.thirdPct : 0)
 
   return {
-    N, total, adminFee, net, entryFee: cfg.entryFee,
+    ...base,
     lastPlacers, lastPrize,
-    firstPlacers, eachFirst: firstPrize,
-    secondPlacers, eachSecond: secondPrize,
+    firstPlacers, eachFirst: Math.round(adjustedFirst * 100) / 100,
+    secondPlacers, eachSecond: Math.round(secondPrize * 100) / 100,
     thirdPlacers, eachThird: thirdPrize,
-    note: 'normal',
+    note: thirdPlacers.length === 0 ? 'no_third_place' : 'normal',
   }
 }

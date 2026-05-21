@@ -273,12 +273,14 @@ export default function Classifica() {
               )}
             </div>
 
-            {prizes.note !== 'normal' && (
+            {prizes.note !== 'normal' && prizes.note !== 'single_player' && prizes.note !== 'two_players' && (
               <div className="flex items-start gap-2 bg-yellow-900/20 border border-yellow-700/30 rounded-xl p-3 text-xs text-yellow-400">
                 <Info size={14} className="shrink-0 mt-0.5" />
                 <span>
                   {prizes.note === 'ex_aequo_first' && 'Ex aequo al 1° posto: l\'intero montepremi viene diviso equamente tra i primi classificati.'}
                   {prizes.note === 'ex_aequo_second' && 'Ex aequo al 2° posto: il montepremi di 2° e 3° viene accorpato e diviso equamente.'}
+                  {prizes.note === 'no_third_place' && 'Non c\'è un 3° classificato distinto: la quota del 3° va al 1°.'}
+                  {prizes.note === 'no_middle_ranks' && 'Solo 1° e ultimo classificato: il montepremi (escluso ultimo) va al 1°.'}
                 </span>
               </div>
             )}
