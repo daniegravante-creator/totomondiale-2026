@@ -15,6 +15,7 @@ export default function Classifica() {
   const [expanded,  setExpanded]  = useState({})
   const [lastUpdate,setLastUpdate]= useState(null)
   const [hasResults,setHasResults]= useState(false)
+  const [isFinished,setIsFinished]= useState(false)
   // Dati per trasparenza pronostici
   const [allMatchPreds, setAllMatchPreds] = useState([])
   const [allAdvPreds,   setAllAdvPreds]   = useState([])
@@ -51,6 +52,7 @@ export default function Classifica() {
       // Controlla se ci sono partite con risultato (= punti assegnabili)
       const matchesWithResult = matches.filter(m => m.status === 'completed' || m.home_score !== null)
       setHasResults(matchesWithResult.length > 0)
+      setIsFinished(settings.tournament_status === 'finished')
 
       const submitted = participants.filter(p => p.has_submitted)
       if (submitted.length === 0) {
@@ -225,7 +227,7 @@ export default function Classifica() {
       )}
 
       {/* ── Premiati (solo se ci sono risultati) ── */}
-      {prizes && hasResults && (
+      {prizes && isFinished && (
         <>
           <div className="accent-divider" />
           <div className="card space-y-3">
@@ -281,6 +283,7 @@ export default function Classifica() {
                   {prizes.note === 'ex_aequo_second' && 'Ex aequo al 2° posto: il montepremi di 2° e 3° viene accorpato e diviso equamente.'}
                   {prizes.note === 'no_third_place' && 'Non c\'è un 3° classificato distinto: la quota del 3° va al 1°.'}
                   {prizes.note === 'no_middle_ranks' && 'Solo 1° e ultimo classificato: il montepremi (escluso ultimo) va al 1°.'}
+                  {prizes.note === 'third_less_than_last' && 'Il 3° posto prende meno della quota d\'iscrizione: il premio dell\'ultimo decade e va al 1°.'}
                 </span>
               </div>
             )}

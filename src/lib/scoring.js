@@ -81,6 +81,7 @@ export function rankParticipants(scored) {
 // • 1 solo partecipante → vince tutto il netto
 // • 2 partecipanti → 1° prende netto - quota_ultimo, ultimo prende quota
 // • 3+ partecipanti → distribuzione normale 1°/2°/3° + ultimo
+// • Se il 3° prenderebbe meno dell'ultimo → ultimo non prende, la sua quota va al 1°
 // Ex aequo:
 // • Più ultimi a pari punti → premio ultimo decade, aggiunto al 1°
 // • Più primi a pari punti → tutto (1°+2°+3°) diviso equamente tra i primi
@@ -191,22 +192,25 @@ export function calculatePrizes(ranked, config = {}) {
 
   if (thirdPlacers.length > 0) {
     thirdPrize = Math.round(pool * cfg.thirdPct / thirdPlacers.length * 100) / 100
-  } else {
-    // Nessun 3° distinto → la quota 3° va al 1°
-    // (es. 3 giocatori: 1°, 2°, ultimo — non c'è un 3° separato)
   }
 
-  // Calcola il residuo non assegnato (quota 3° se non c'è un 3°) e aggiungilo al 1°
-  const assignedFromPool = (pool * cfg.firstPct) + secondPrize + (thirdPrize * thirdPlacers.length)
-  const residue = pool - assignedFromPool
-  const adjustedFirst = pool * cfg.firstPct + firstBonus + (thirdPlacers.length === 0 ? pool * cfg.thirdPct : 0)
+  // Se il 3° prenderebbe meno dell'ultimo (quota iscrizione), l'ultimo non prende
+  // e la sua quota va al 1°
+  let finalLastPrize = lastPrize
+  let finalFirstBonus = firstBonus
+  if (thirdPlacers.length > 0 && thirdPrize < cfg.entryFee && !multipleLast) {
+    finalLastPrize = 0
+    finalFirstBonus = firstBonus + cfg.entryFee  // aggiungi quota ultimo al 1°
+  }
+
+  const adjustedFirst = pool * cfg.firstPct + finalFirstBonus + (thirdPlacers.length === 0 ? pool * cfg.thirdPct : 0)
 
   return {
     ...base,
-    lastPlacers, lastPrize,
+    lastPlacers, lastPrize: finalLastPrize,
     firstPlacers, eachFirst: Math.round(adjustedFirst * 100) / 100,
     secondPlacers, eachSecond: Math.round(secondPrize * 100) / 100,
     thirdPlacers, eachThird: thirdPrize,
-    note: thirdPlacers.length === 0 ? 'no_third_place' : 'normal',
+    note: thirdPlacers.length === 0 ? 'no_third_place' : (finalLastPrize === 0 && !multipleLast ? 'third_less_than_last' : 'normal'),
   }
 }
