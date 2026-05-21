@@ -807,7 +807,7 @@ function TabSettings({ settings, participants, matches, teams, onRefresh }) {
       const submitted = participants.filter(p => p.has_submitted)
       const sortedMatches = [...matches].sort((a,b) => a.match_number - b.match_number)
 
-      // Mappa pronostici: { participantId: { matchId: '1'/'X'/'2' } }
+      // Mappa pronostici: { participantId: { matchId: '1'/'0'/'2' } }
       const predsByPart = {}
       for (const mp of matchPreds) {
         if (!predsByPart[mp.participant_id]) predsByPart[mp.participant_id] = {}

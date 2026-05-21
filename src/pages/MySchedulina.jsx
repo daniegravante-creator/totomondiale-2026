@@ -48,7 +48,7 @@ export default function MySchedulina() {
   if (loading) return <LoadingSpinner text="Caricamento schedina…" />
 
   const canEdit = isBeforeDeadline()
-  const OUTCOME_COLORS = { '1': 'text-blue-400 border-blue-600/40 bg-blue-900/20', 'X': 'text-yellow-400 border-yellow-600/40 bg-yellow-900/20', '2': 'text-red-400 border-red-600/40 bg-red-900/20' }
+  const OUTCOME_COLORS = { '1': 'text-blue-400 border-blue-600/40 bg-blue-900/20', '0': 'text-yellow-400 border-yellow-600/40 bg-yellow-900/20', '2': 'text-red-400 border-red-600/40 bg-red-900/20' }
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">

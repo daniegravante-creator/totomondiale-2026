@@ -315,7 +315,7 @@ function ParticipantDetail({ participant, matchPreds, advPred, matches, teams, t
 
   const OUTCOME_COLORS = {
     '1': 'text-blue-400',
-    'X': 'text-yellow-400',
+    '0': 'text-yellow-400',
     '2': 'text-red-400',
   }
 

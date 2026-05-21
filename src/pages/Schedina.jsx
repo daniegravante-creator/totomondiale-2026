@@ -26,7 +26,7 @@ export default function Schedina() {
   const [isEditing,   setIsEditing]   = useState(false)
 
   // Stato pronostici
-  const [predictions,   setPredictions]   = useState({})   // { matchId: '1'|'X'|'2' }
+  const [predictions,   setPredictions]   = useState({})   // { matchId: '1'|'0'|'2' }
   const [semis,         setSemis]         = useState([])   // 4 team IDs
   const [finalists,     setFinalists]     = useState([])   // 2 team IDs
   const [winner,        setWinner]        = useState(null) // 1 team ID
@@ -594,14 +594,14 @@ function MatchRow({ match, value, onChange }) {
         <span className="text-xs font-medium truncate">{ht?.name}</span>
       </div>
       <div className="flex gap-1 shrink-0">
-        {['1','X','2'].map(opt => (
+        {['1','0','2'].map(opt => (
           <button
             key={opt}
             onClick={() => onChange(opt)}
             className={`outcome-btn w-9 text-xs
               ${value === opt
                 ? opt === '1' ? 'outcome-btn-1'
-                  : opt === 'X' ? 'outcome-btn-X'
+                  : opt === '0' ? 'outcome-btn-X'
                   : 'outcome-btn-2'
                 : 'outcome-btn-inactive'}`}
           >
