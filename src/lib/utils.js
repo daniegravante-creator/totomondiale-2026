@@ -35,7 +35,7 @@ export async function checkAdminPassword(input) {
 export function getMatchOutcome(homeScore, awayScore) {
   if (homeScore === null || awayScore === null) return null
   if (homeScore > awayScore)  return '1'
-  if (homeScore === awayScore) return '0'
+  if (homeScore === awayScore) return 'X'
   return '2'
 }
 

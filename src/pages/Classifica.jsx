@@ -315,7 +315,7 @@ function ParticipantDetail({ participant, matchPreds, advPred, matches, teams, t
 
   const OUTCOME_COLORS = {
     '1': 'text-blue-400',
-    '0': 'text-yellow-400',
+    'X': 'text-yellow-400',
     '2': 'text-red-400',
   }
 
@@ -484,31 +484,38 @@ function ParticipantDetail({ participant, matchPreds, advPred, matches, teams, t
               const isCorrect = actual && pred === actual
 
               return (
-                <div key={m.id} className={`flex items-center gap-1.5 py-1.5 px-2 rounded-lg text-xs
+                <div key={m.id} className={`py-1.5 px-2 rounded-lg text-xs
                   ${hasResult
                     ? isCorrect ? 'bg-green-900/10 border border-green-800/30' : 'bg-red-900/5 border border-red-900/20'
                     : 'border border-transparent'}`}>
-                  {/* Home team */}
-                  <span className="shrink-0">{ht?.flag}</span>
-                  <span className="truncate flex-1 min-w-0">{ht?.name}</span>
+                  <div className="flex items-center gap-1.5">
+                    {/* Home team */}
+                    <span className="shrink-0">{ht?.flag}</span>
+                    <span className="truncate flex-1 min-w-0">{ht?.name}</span>
 
-                  {/* Prediction */}
-                  <span className={`font-bold px-1.5 py-0.5 rounded shrink-0 ${OUTCOME_COLORS[pred] ?? 'text-tm-muted'}`}>
-                    {pred ?? '—'}
-                  </span>
-
-                  {/* Result indicator */}
-                  {hasResult && (
-                    <span className="shrink-0 w-8 text-center">
-                      {isCorrect
-                        ? <CheckCircle2 size={12} className="text-green-400 inline" />
-                        : <span className="text-tm-muted font-mono">{actual}</span>}
+                    {/* Prediction */}
+                    <span className={`font-bold px-1.5 py-0.5 rounded shrink-0 ${OUTCOME_COLORS[pred] ?? 'text-tm-muted'}`}>
+                      {pred ?? '—'}
                     </span>
-                  )}
 
-                  {/* Away team */}
-                  <span className="truncate flex-1 min-w-0 text-right">{at?.name}</span>
-                  <span className="shrink-0">{at?.flag}</span>
+                    {/* Correct/wrong icon */}
+                    {hasResult && (
+                      isCorrect
+                        ? <CheckCircle2 size={12} className="text-green-400 shrink-0" />
+                        : <XCircle size={12} className="text-red-400/60 shrink-0" />
+                    )}
+
+                    {/* Away team */}
+                    <span className="truncate flex-1 min-w-0 text-right">{at?.name}</span>
+                    <span className="shrink-0">{at?.flag}</span>
+                  </div>
+
+                  {/* Risultato reale sotto */}
+                  {hasResult && (
+                    <div className="flex items-center justify-center gap-2 mt-1 text-[10px] text-tm-muted">
+                      <span>Risultato: <span className="font-mono font-bold text-white">{m.home_score} - {m.away_score}</span></span>
+                    </div>
+                  )}
                 </div>
               )
             })}

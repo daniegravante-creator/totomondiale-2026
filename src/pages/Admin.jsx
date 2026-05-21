@@ -524,8 +524,8 @@ function TabRisultati({ matches: initialMatches, teams, settings, onRefresh }) {
           const ht = m.home_team ?? teams.find(t => t.id === m.home_team_id)
           const at = m.away_team ?? teams.find(t => t.id === m.away_team_id)
           const sc = scores[m.id] ?? {}
-          const homeVal = sc.home !== undefined ? sc.home : (m.home_score ?? '')
-          const awayVal = sc.away !== undefined ? sc.away : (m.away_score ?? '')
+          const homeVal = sc.home !== undefined ? sc.home : (m.home_score ?? 0)
+          const awayVal = sc.away !== undefined ? sc.away : (m.away_score ?? 0)
           const changed = hasChanges(m)
 
           return (
@@ -554,7 +554,6 @@ function TabRisultati({ matches: initialMatches, teams, settings, onRefresh }) {
                     value={homeVal}
                     onChange={e => handleScoreChange(m.id, 'home', e.target.value)}
                     className="input-field w-12 text-center text-sm py-1.5 px-2"
-                    placeholder="–"
                   />
                   <span className="text-tm-muted text-sm font-bold">-</span>
                   <input
@@ -563,7 +562,6 @@ function TabRisultati({ matches: initialMatches, teams, settings, onRefresh }) {
                     value={awayVal}
                     onChange={e => handleScoreChange(m.id, 'away', e.target.value)}
                     className="input-field w-12 text-center text-sm py-1.5 px-2"
-                    placeholder="–"
                   />
                 </div>
                 <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
@@ -807,7 +805,7 @@ function TabSettings({ settings, participants, matches, teams, onRefresh }) {
       const submitted = participants.filter(p => p.has_submitted)
       const sortedMatches = [...matches].sort((a,b) => a.match_number - b.match_number)
 
-      // Mappa pronostici: { participantId: { matchId: '1'/'0'/'2' } }
+      // Mappa pronostici: { participantId: { matchId: '1'/'X'/'2' } }
       const predsByPart = {}
       for (const mp of matchPreds) {
         if (!predsByPart[mp.participant_id]) predsByPart[mp.participant_id] = {}
